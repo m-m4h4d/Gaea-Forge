@@ -1,0 +1,16 @@
+{
+  "name": "gaea-forge",
+  "version": "1.0.0",
+  "description": "Local-First, Open-Source World-Building Platform",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web",
+    "tauri": "npx @tauri-apps/cli"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "latest"
+  }
+}

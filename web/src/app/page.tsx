@@ -17,7 +17,7 @@ import {
 export default function Home() {
   const [db, setDb] = useState<GaeaDatabase | null>(null);
   const [articles, setArticles] = useState<LoreArticle[]>(INITIAL_SEED_ARTICLES);
-  const [activeArticleId, setActiveArticleId] = useState<string>('char-elora');
+  const [activeArticleId, setActiveArticleId] = useState<string>('welcome-gaea-forge');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);

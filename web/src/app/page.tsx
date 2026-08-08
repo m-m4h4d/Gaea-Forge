@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import Editor from '@/components/Editor';
 import NewArticleModal from '@/components/NewArticleModal';
+import NewCanvasModal from '@/components/NewCanvasModal';
 import ExportImportModal from '@/components/ExportImportModal';
+import FamilyTreeCanvas from '@/components/FamilyTreeCanvas';
+import WorldWebCanvas from '@/components/WorldWebCanvas';
 import {
   getDatabase,
   LoreArticle,
@@ -11,6 +14,9 @@ import {
   LoreCategory,
   EntityProperty,
   INITIAL_SEED_ARTICLES,
+  INITIAL_SEED_CANVASES,
+  CanvasData,
+  CanvasType,
   GaeaDatabase,
 } from '@/lib/database';
 
@@ -21,9 +27,27 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
+
+  // View Mode: 'editor' | 'canvas'
+  const [activeViewMode, setActiveViewMode] = useState<'editor' | 'canvas'>('editor');
+
+  // Canvases State
+  const [canvases, setCanvases] = useState<CanvasData[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem('gaea_canvases_v3');
+        if (local) return JSON.parse(local);
+      } catch {
+        // ignore
+      }
+    }
+    return INITIAL_SEED_CANVASES;
+  });
+  const [activeCanvasId, setActiveCanvasId] = useState<string>('canvas-master-web');
   
   // Modals state
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isNewCanvasModalOpen, setIsNewCanvasModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [newModalCategory, setNewModalCategory] = useState<LoreCategory>('Characters');
 
@@ -40,7 +64,7 @@ export default function Home() {
 
   const [, startTransition] = useTransition();
 
-  // Initialize RxDB and subscribe to live changes
+  // Initialize RxDB
   useEffect(() => {
     let isMounted = true;
     let subscription: { unsubscribe: () => void } | null = null;
@@ -50,7 +74,6 @@ export default function Home() {
         if (!isMounted) return;
         setDb(database);
 
-        // Initial fetch
         database.articles
           .find()
           .exec()
@@ -61,7 +84,6 @@ export default function Home() {
             }
           });
 
-        // Live RxDB subscription
         subscription = database.articles.find().$.subscribe((docs) => {
           if (isMounted && docs) {
             const items = docs.map((doc) => doc.toJSON() as LoreArticle);
@@ -79,8 +101,21 @@ export default function Home() {
     };
   }, []);
 
+  // Save Canvases to LocalStorage
+  const saveCanvases = (updatedCanvases: CanvasData[]) => {
+    setCanvases(updatedCanvases);
+    try {
+      localStorage.setItem('gaea_canvases_v3', JSON.stringify(updatedCanvases));
+    } catch {
+      // ignore
+    }
+  };
+
   // Current active article document
   const activeArticle = articles.find((a) => a.id === activeArticleId) || articles[0];
+
+  // Current active canvas document
+  const activeCanvas = canvases.find((c) => c.id === activeCanvasId) || canvases[0];
 
   // Helper to persist updated article to state and RxDB
   const updateArticle = useCallback(
@@ -91,14 +126,12 @@ export default function Home() {
       };
       setIsSaving(true);
       
-      // Local state transition for instant responsiveness
       startTransition(() => {
         setArticles((prev) =>
           prev.map((art) => (art.id === itemToSave.id ? itemToSave : art))
         );
       });
 
-      // RxDB upsert
       if (db) {
         try {
           await db.articles.upsert(itemToSave);
@@ -113,6 +146,54 @@ export default function Home() {
     },
     [db]
   );
+
+  // Helper to save current active canvas changes
+  const handleActiveCanvasChange = (updatedCanvas: CanvasData) => {
+    const updated = canvases.map((c) => (c.id === updatedCanvas.id ? updatedCanvas : c));
+    saveCanvases(updated);
+  };
+
+  // Create canvas handler
+  const handleCreateCanvas = (data: { title: string; type: CanvasType }) => {
+    const newCanvas: CanvasData = {
+      id: `canvas-${Date.now()}`,
+      title: data.title,
+      type: data.type,
+      nodes: [],
+      connections: [],
+      last_updated: Date.now(),
+    };
+
+    const updated = [newCanvas, ...canvases];
+    saveCanvases(updated);
+    setActiveCanvasId(newCanvas.id);
+    setActiveViewMode('canvas');
+  };
+
+  // Delete Canvas Handler
+  const handleDeleteCanvas = (canvasIdToDelete: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    const canvasToDelete = canvases.find((c) => c.id === canvasIdToDelete);
+    if (!canvasToDelete) return;
+
+    if (canvases.length <= 1) {
+      alert('You must keep at least one canvas in your world workspace.');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete canvas "${canvasToDelete.title}"?`
+    );
+    if (!confirmDelete) return;
+
+    const remaining = canvases.filter((c) => c.id !== canvasIdToDelete);
+    saveCanvases(remaining);
+
+    if (activeCanvasId === canvasIdToDelete) {
+      setActiveCanvasId(remaining[0].id);
+    }
+  };
 
   // Content change handler from TipTap editor
   const handleContentChange = (newContent: string) => {
@@ -324,10 +405,11 @@ export default function Home() {
   });
 
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
+  const characterArticles = articles.filter((a) => a.category === 'Characters');
 
   return (
     <div className="flex h-screen w-full bg-slate-950 text-parchment overflow-hidden select-none font-sans">
-      {/* LEFT SIDEBAR: Navigation, Categories & Search */}
+      {/* LEFT SIDEBAR: Navigation, Categories, Canvases & Search */}
       <aside className="w-72 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl z-20">
         {/* App Title & Header Actions */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
@@ -385,8 +467,64 @@ export default function Home() {
           )}
         </div>
 
-        {/* Categories & Articles List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
+        {/* Categories & Canvases Navigation */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-5 custom-scrollbar">
+          {/* World Canvases Section */}
+          <div>
+            <div className="flex items-center justify-between px-2 mb-2">
+              <span className="font-semibold text-gold uppercase text-[10px] tracking-wider flex items-center gap-1">
+                <span>🎨</span> World Canvases
+              </span>
+              <button
+                onClick={() => setIsNewCanvasModalOpen(true)}
+                className="text-[10px] text-slate-400 hover:text-gold font-bold px-1 rounded transition-colors"
+                title="Create New Canvas"
+              >
+                + New
+              </button>
+            </div>
+
+            <ul className="space-y-1">
+              {canvases.map((canvas) => (
+                <li key={canvas.id} className="group relative flex items-center">
+                  <button
+                    onClick={() => {
+                      setActiveCanvasId(canvas.id);
+                      setActiveViewMode('canvas');
+                    }}
+                    className={`w-full text-left py-1.5 pl-2.5 pr-7 rounded-lg text-xs flex items-center justify-between transition-all ${
+                      activeCanvasId === canvas.id && activeViewMode === 'canvas'
+                        ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
+                        : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
+                    }`}
+                  >
+                    <span className="truncate flex items-center gap-1.5">
+                      <span>{canvas.type === 'world-web' ? '🌐' : '🌳'}</span>
+                      {canvas.title}
+                    </span>
+                    <span className="text-[9px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
+                      {canvas.type === 'world-web' ? 'Web' : 'Tree'}
+                    </span>
+                  </button>
+
+                  {canvases.length > 1 && (
+                    <button
+                      onClick={(e) => handleDeleteCanvas(canvas.id, e)}
+                      className={`absolute right-1.5 text-xs p-1 rounded transition-opacity ${
+                        activeCanvasId === canvas.id && activeViewMode === 'canvas'
+                          ? 'text-slate-900 hover:text-red-700 font-bold'
+                          : 'text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 font-bold'
+                      }`}
+                      title={`Delete ${canvas.title}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Pinned Articles Section */}
           {pinnedArticles.length > 0 && (
             <div>
@@ -397,9 +535,12 @@ export default function Home() {
                 {pinnedArticles.map((art) => (
                   <li key={`pinned-${art.id}`}>
                     <button
-                      onClick={() => setActiveArticleId(art.id)}
+                      onClick={() => {
+                        setActiveArticleId(art.id);
+                        setActiveViewMode('editor');
+                      }}
                       className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
-                        activeArticleId === art.id
+                        activeArticleId === art.id && activeViewMode === 'editor'
                           ? 'bg-gold text-slate-950 font-semibold shadow-md shadow-gold/10'
                           : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
                       }`}
@@ -417,7 +558,7 @@ export default function Home() {
           <div>
             <div className="flex items-center justify-between px-2 mb-2">
               <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
-                Categories
+                Lore Categories
               </span>
               {selectedCategoryFilter && (
                 <button
@@ -471,9 +612,12 @@ export default function Home() {
                         {categoryArticles.map((art) => (
                           <li key={art.id}>
                             <button
-                              onClick={() => setActiveArticleId(art.id)}
+                              onClick={() => {
+                                setActiveArticleId(art.id);
+                                setActiveViewMode('editor');
+                              }}
                               className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
-                                activeArticleId === art.id
+                                activeArticleId === art.id && activeViewMode === 'editor'
                                   ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
                                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
                               }`}
@@ -505,17 +649,43 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA: Header & TipTap Editor */}
+      {/* MAIN CONTENT AREA: Navbar Mode Switcher & Workspace */}
       <main className="flex-1 flex flex-col bg-[#0b1120] relative overflow-hidden">
-        {/* Top Navbar */}
+        {/* Top Navbar with View Switcher Tabs */}
         <header className="h-14 border-b border-slate-800 flex items-center px-6 justify-between shrink-0 bg-slate-900/80 backdrop-blur-md z-10">
-          {/* Breadcrumb Path */}
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="text-slate-500 font-semibold">World Lore</span>
-            <span>/</span>
-            <span className="text-slate-400 font-medium">{activeArticle?.category || 'General'}</span>
-            <span>/</span>
-            <span className="text-gold font-bold">{activeArticle?.title || 'Untitled Entity'}</span>
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => setActiveViewMode('editor')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeViewMode === 'editor'
+                    ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>📄</span> Lore Editor
+              </button>
+              <button
+                onClick={() => setActiveViewMode('canvas')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeViewMode === 'canvas'
+                    ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>{activeCanvas.type === 'world-web' ? '🌐' : '🌳'}</span> Canvas: {activeCanvas.title}
+              </button>
+            </div>
+
+            {activeViewMode === 'editor' && (
+              <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400 ml-3">
+                <span className="text-slate-500 font-semibold">Path:</span>
+                <span className="text-slate-400 font-medium">{activeArticle?.category || 'General'}</span>
+                <span>/</span>
+                <span className="text-gold font-bold">{activeArticle?.title || 'Untitled Entity'}</span>
+              </div>
+            )}
           </div>
 
           {/* Right Header Controls */}
@@ -531,283 +701,321 @@ export default function Home() {
               )}
             </div>
 
-            {/* Pin Toggle Button */}
-            <button
-              onClick={handleTogglePin}
-              className={`p-1.5 rounded-lg border text-xs transition-colors ${
-                activeArticle?.isPinned
-                  ? 'bg-gold/20 border-gold text-gold'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-              }`}
-              title={activeArticle?.isPinned ? 'Unpin Article' : 'Pin Article to top'}
-            >
-              📌 {activeArticle?.isPinned ? 'Pinned' : 'Pin'}
-            </button>
+            {activeViewMode === 'editor' && (
+              <>
+                {/* Pin Toggle Button */}
+                <button
+                  onClick={handleTogglePin}
+                  className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                    activeArticle?.isPinned
+                      ? 'bg-gold/20 border-gold text-gold'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={activeArticle?.isPinned ? 'Unpin Article' : 'Pin Article to top'}
+                >
+                  📌 {activeArticle?.isPinned ? 'Pinned' : 'Pin'}
+                </button>
 
-            {/* Manual Save Button */}
-            <button
-              onClick={() => activeArticle && updateArticle(activeArticle)}
-              className="px-4 py-1.5 bg-gold text-slate-950 rounded-lg font-bold text-xs hover:bg-gold-hover transition-colors shadow-md shadow-gold/20"
-            >
-              Save Now
-            </button>
+                {/* Manual Save Button */}
+                <button
+                  onClick={() => activeArticle && updateArticle(activeArticle)}
+                  className="px-4 py-1.5 bg-gold text-slate-950 rounded-lg font-bold text-xs hover:bg-gold-hover transition-colors shadow-md shadow-gold/20"
+                >
+                  Save Now
+                </button>
+              </>
+            )}
+
+            {activeViewMode === 'canvas' && canvases.length > 1 && (
+              <button
+                onClick={() => handleDeleteCanvas(activeCanvas.id)}
+                className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 text-red-400 hover:bg-red-900 hover:text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                title="Delete this canvas"
+              >
+                <span>🗑️</span> Delete Canvas
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Editor Main Canvas */}
-        <div className="flex-1 p-6 overflow-hidden">
-          {activeArticle ? (
-            <Editor
-              key={activeArticle.id}
-              content={activeArticle.content}
-              onChange={handleContentChange}
+        {/* Canvas or Editor Workspace */}
+        <div className="flex-1 overflow-hidden relative">
+          {activeViewMode === 'editor' ? (
+            <div className="w-full h-full p-6">
+              {activeArticle ? (
+                <Editor
+                  key={activeArticle.id}
+                  content={activeArticle.content}
+                  onChange={handleContentChange}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-slate-500">
+                  Select or create an article to begin lore editing.
+                </div>
+              )}
+            </div>
+          ) : activeCanvas.type === 'world-web' ? (
+            <WorldWebCanvas
+              key={activeCanvas.id}
+              canvasData={activeCanvas}
+              onChange={handleActiveCanvasChange}
+              articles={articles}
+              onOpenArticle={(artId) => {
+                setActiveArticleId(artId);
+                setActiveViewMode('editor');
+              }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-500">
-              Select or create an article to begin lore editing.
-            </div>
+            <FamilyTreeCanvas
+              key={activeCanvas.id}
+              canvasData={activeCanvas}
+              onChange={handleActiveCanvasChange}
+              characterArticles={characterArticles}
+            />
           )}
         </div>
       </main>
 
-      {/* RIGHT SIDEBAR: Entity Metadata, Tags & Properties Inspector */}
-      <aside className="w-80 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col shadow-2xl z-20">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-          <h2 className="font-bold text-gold tracking-wide text-sm flex items-center gap-1.5">
-            <span>⚜</span> Entity Inspector
-          </h2>
-          {activeArticle && (
-            <button
-              onClick={handleDeleteActiveArticle}
-              className="text-xs text-red-400 hover:text-red-300 hover:underline"
-              title="Delete this article"
-            >
-              Delete
-            </button>
-          )}
-        </div>
+      {/* RIGHT SIDEBAR: Entity Metadata Inspector (Visible in Editor mode) */}
+      {activeViewMode === 'editor' && (
+        <aside className="w-80 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col shadow-2xl z-20">
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <h2 className="font-bold text-gold tracking-wide text-sm flex items-center gap-1.5">
+              <span>⚜</span> Entity Inspector
+            </h2>
+            {activeArticle && (
+              <button
+                onClick={handleDeleteActiveArticle}
+                className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                title="Delete this article"
+              >
+                Delete
+              </button>
+            )}
+          </div>
 
-        {activeArticle ? (
-          <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs custom-scrollbar">
-            {/* Cover Image Header */}
-            <div>
-              <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
-                Entity Artwork / Map
-              </h3>
-              <label className="aspect-video w-full bg-slate-950 rounded-xl flex flex-col items-center justify-center border border-slate-800 hover:border-gold cursor-pointer transition-all group relative overflow-hidden shadow-inner">
-                {activeArticle.coverImage ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={activeArticle.coverImage}
-                    alt={activeArticle.title}
-                    className="w-full h-full object-cover rounded-xl"
-                  />
-                ) : (
-                  <div className="text-center p-3">
-                    <span className="text-2xl block mb-1">🖼️</span>
-                    <span className="text-slate-500 group-hover:text-gold text-xs transition-colors font-medium">
-                      Upload Artwork
-                    </span>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            {/* Entity Title & Category Fields */}
-            <div className="space-y-3 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+          {activeArticle ? (
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs custom-scrollbar">
+              {/* Cover Image Header */}
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={activeArticle.title}
-                  onChange={(e) =>
-                    updateArticle({
-                      ...activeArticle,
-                      title: e.target.value,
-                    })
-                  }
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment font-semibold text-xs focus:outline-none focus:border-gold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
-                  Category
-                </label>
-                <select
-                  value={activeArticle.category}
-                  onChange={(e) =>
-                    updateArticle({
-                      ...activeArticle,
-                      category: e.target.value as LoreCategory,
-                    })
-                  }
-                  className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment text-xs focus:outline-none focus:border-gold"
-                >
-                  {LORE_CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Tags Manager */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                  Tags ({activeArticle.tags.length})
+                <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
+                  Entity Artwork / Map
                 </h3>
-                <button
-                  onClick={() => setShowAddTagInput(!showAddTagInput)}
-                  className="text-gold hover:underline text-[10px] font-semibold"
-                >
-                  + Add Tag
-                </button>
+                <label className="aspect-video w-full bg-slate-950 rounded-xl flex flex-col items-center justify-center border border-slate-800 hover:border-gold cursor-pointer transition-all group relative overflow-hidden shadow-inner">
+                  {activeArticle.coverImage ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={activeArticle.coverImage}
+                      alt={activeArticle.title}
+                      className="w-full h-full object-cover rounded-xl"
+                    />
+                  ) : (
+                    <div className="text-center p-3">
+                      <span className="text-2xl block mb-1">🖼️</span>
+                      <span className="text-slate-500 group-hover:text-gold text-xs transition-colors font-medium">
+                        Upload Artwork
+                      </span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
-              {/* Tag Pills */}
-              <div className="flex flex-wrap gap-1.5">
-                {activeArticle.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-0.5 bg-slate-800 border border-slate-700/80 rounded-full text-xs text-parchment-muted hover:border-gold flex items-center gap-1 transition-colors group cursor-pointer"
-                  >
-                    <span onClick={() => setSelectedTagFilter(tag)}>#{tag}</span>
-                    <button
-                      onClick={() => handleRemoveTag(tag)}
-                      className="text-slate-500 hover:text-red-400 font-bold ml-0.5 text-[10px]"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-              </div>
-
-              {/* Add Tag Inline Form */}
-              {showAddTagInput && (
-                <div className="mt-2 flex gap-1">
+              {/* Entity Title & Category Fields */}
+              <div className="space-y-3 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                    Title
+                  </label>
                   <input
                     type="text"
-                    autoFocus
-                    placeholder="New tag..."
-                    value={newTagInput}
-                    onChange={(e) => setNewTagInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
+                    value={activeArticle.title}
+                    onChange={(e) =>
+                      updateArticle({
+                        ...activeArticle,
+                        title: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment font-semibold text-xs focus:outline-none focus:border-gold"
                   />
-                  <button
-                    onClick={handleAddTag}
-                    className="px-2.5 py-1 bg-gold text-slate-950 font-bold rounded text-xs hover:bg-gold-hover"
+                </div>
+
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={activeArticle.category}
+                    onChange={(e) =>
+                      updateArticle({
+                        ...activeArticle,
+                        category: e.target.value as LoreCategory,
+                      })
+                    }
+                    className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment text-xs focus:outline-none focus:border-gold"
                   >
-                    Add
+                    {LORE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Tags Manager */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                    Tags ({activeArticle.tags.length})
+                  </h3>
+                  <button
+                    onClick={() => setShowAddTagInput(!showAddTagInput)}
+                    className="text-gold hover:underline text-[10px] font-semibold"
+                  >
+                    + Add Tag
                   </button>
                 </div>
-              )}
-            </div>
 
-            {/* Key-Value Properties Manager */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
-                  Custom Properties ({activeArticle.properties.length})
-                </h3>
-                <button
-                  onClick={() => setShowAddPropInput(!showAddPropInput)}
-                  className="text-gold hover:underline text-[10px] font-semibold"
-                >
-                  + Add Property
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {activeArticle.properties.map((prop, idx) => (
-                  <div
-                    key={`${prop.key}-${idx}`}
-                    className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 text-xs group"
-                  >
-                    <span className="text-slate-500 font-medium w-1/3 truncate">
-                      {prop.key}
+                {/* Tag Pills */}
+                <div className="flex flex-wrap gap-1.5">
+                  {activeArticle.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 bg-slate-800 border border-slate-700/80 rounded-full text-xs text-parchment-muted hover:border-gold flex items-center gap-1 transition-colors group cursor-pointer"
+                    >
+                      <span onClick={() => setSelectedTagFilter(tag)}>#{tag}</span>
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        className="text-slate-500 hover:text-red-400 font-bold ml-0.5 text-[10px]"
+                      >
+                        ✕
+                      </button>
                     </span>
+                  ))}
+                </div>
+
+                {/* Add Tag Inline Form */}
+                {showAddTagInput && (
+                  <div className="mt-2 flex gap-1">
                     <input
                       type="text"
-                      value={prop.value}
-                      onChange={(e) => handleUpdatePropertyValue(idx, e.target.value)}
-                      className="w-1/2 bg-transparent text-right text-parchment-muted focus:bg-slate-950 focus:outline-none border-b border-transparent focus:border-gold px-1 rounded"
+                      autoFocus
+                      placeholder="New tag..."
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                      className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
                     />
                     <button
-                      onClick={() => handleDeleteProperty(idx)}
-                      className="text-slate-600 hover:text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                      title="Remove property"
+                      onClick={handleAddTag}
+                      className="px-2.5 py-1 bg-gold text-slate-950 font-bold rounded text-xs hover:bg-gold-hover"
                     >
-                      ✕
+                      Add
                     </button>
                   </div>
-                ))}
+                )}
               </div>
 
-              {/* Add Property Inline Form */}
-              {showAddPropInput && (
-                <div className="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Key (e.g. Danger Level)"
-                    value={newPropKey}
-                    onChange={(e) => setNewPropKey(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Value (e.g. Extreme)"
-                    value={newPropValue}
-                    onChange={(e) => setNewPropValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddProperty()}
-                    className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
-                  />
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button
-                      onClick={() => setShowAddPropInput(false)}
-                      className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[10px] rounded"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddProperty}
-                      className="px-2.5 py-0.5 bg-gold text-slate-950 font-bold text-[10px] rounded hover:bg-gold-hover"
-                    >
-                      Save Property
-                    </button>
-                  </div>
+              {/* Key-Value Properties Manager */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                    Custom Properties ({activeArticle.properties.length})
+                  </h3>
+                  <button
+                    onClick={() => setShowAddPropInput(!showAddPropInput)}
+                    className="text-gold hover:underline text-[10px] font-semibold"
+                  >
+                    + Add Property
+                  </button>
                 </div>
-              )}
-            </div>
 
-            {/* Last Modified Info */}
-            <div className="pt-4 border-t border-slate-800/80 text-[10px] text-slate-500 space-y-1">
-              <div>
-                ID: <span className="font-mono text-slate-400">{activeArticle.id}</span>
+                <div className="space-y-2">
+                  {activeArticle.properties.map((prop, idx) => (
+                    <div
+                      key={`${prop.key}-${idx}`}
+                      className="flex items-center justify-between border-b border-slate-800/80 pb-1.5 text-xs group"
+                    >
+                      <span className="text-slate-500 font-medium w-1/3 truncate">
+                        {prop.key}
+                      </span>
+                      <input
+                        type="text"
+                        value={prop.value}
+                        onChange={(e) => handleUpdatePropertyValue(idx, e.target.value)}
+                        className="w-1/2 bg-transparent text-right text-parchment-muted focus:bg-slate-950 focus:outline-none border-b border-transparent focus:border-gold px-1 rounded"
+                      />
+                      <button
+                        onClick={() => handleDeleteProperty(idx)}
+                        className="text-slate-600 hover:text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                        title="Remove property"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Property Inline Form */}
+                {showAddPropInput && (
+                  <div className="mt-3 p-2 bg-slate-950 border border-slate-800 rounded-lg space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Key (e.g. Danger Level)"
+                      value={newPropKey}
+                      onChange={(e) => setNewPropKey(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Value (e.g. Extreme)"
+                      value={newPropValue}
+                      onChange={(e) => setNewPropValue(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddProperty()}
+                      className="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-xs text-parchment focus:outline-none focus:border-gold"
+                    />
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => setShowAddPropInput(false)}
+                        className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[10px] rounded"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAddProperty}
+                        className="px-2.5 py-0.5 bg-gold text-slate-950 font-bold text-[10px] rounded hover:bg-gold-hover"
+                      >
+                        Save Property
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                Last Modified:{' '}
-                <span className="text-slate-400" suppressHydrationWarning>
-                  {new Date(activeArticle.last_updated).toLocaleString()}
-                </span>
+
+              {/* Last Modified Info */}
+              <div className="pt-4 border-t border-slate-800/80 text-[10px] text-slate-500 space-y-1">
+                <div>
+                  ID: <span className="font-mono text-slate-400">{activeArticle.id}</span>
+                </div>
+                <div>
+                  Last Modified:{' '}
+                  <span className="text-slate-400" suppressHydrationWarning>
+                    {new Date(activeArticle.last_updated).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="p-4 text-xs text-slate-500">No entity selected.</div>
-        )}
-      </aside>
+          ) : (
+            <div className="p-4 text-xs text-slate-500">No entity selected.</div>
+          )}
+        </aside>
+      )}
 
       {/* MODALS */}
       <NewArticleModal
@@ -815,6 +1023,12 @@ export default function Home() {
         onClose={() => setIsNewModalOpen(false)}
         onCreate={handleCreateArticle}
         defaultCategory={newModalCategory}
+      />
+
+      <NewCanvasModal
+        isOpen={isNewCanvasModalOpen}
+        onClose={() => setIsNewCanvasModalOpen(false)}
+        onCreate={handleCreateCanvas}
       />
 
       <ExportImportModal

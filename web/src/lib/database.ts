@@ -28,6 +28,46 @@ export type LoreArticle = {
   last_updated: number;
 };
 
+export type RelationshipType =
+  | 'parent-child'
+  | 'spouse'
+  | 'sibling'
+  | 'ancestor'
+  | 'mentor'
+  | 'ally'
+  | 'rival'
+  | 'custom';
+
+export type CanvasType = 'family-tree' | 'world-web';
+
+export type CanvasNode = {
+  id: string;
+  articleId?: string;
+  label: string;
+  role?: string;
+  category: string;
+  x: number;
+  y: number;
+  avatarUrl?: string;
+};
+
+export type CanvasConnection = {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  relationship: RelationshipType;
+  label?: string;
+};
+
+export type CanvasData = {
+  id: string;
+  title: string;
+  type: CanvasType;
+  nodes: CanvasNode[];
+  connections: CanvasConnection[];
+  last_updated: number;
+};
+
 export const LORE_CATEGORIES = [
   'Characters',
   'Locations',
@@ -112,12 +152,42 @@ export const INITIAL_SEED_ARTICLES: LoreArticle[] = [
       <h2>Getting Started</h2>
       <ul>
         <li><strong>Create Lore:</strong> Click <em>+ New Lore Article</em> in the sidebar to add characters, locations, factions, and artifacts.</li>
+        <li><strong>World Canvases:</strong> Create multi-type canvases in the sidebar! Visualise family trees or explore the <strong>Master World Web</strong> connecting all your universe entities.</li>
         <li><strong>Rich Formatting:</strong> Use headings, text formatting, lists, blockquotes, and code in the live editor.</li>
         <li><strong>Entity Inspector:</strong> Tag your entries, define custom key-value properties, and upload entity artwork on the right.</li>
         <li><strong>Local & Private:</strong> All your world data is stored locally in IndexedDB with zero cloud dependencies. Backup anytime via <em>💾 Backup</em>.</li>
       </ul>
     `,
     isPinned: true,
+    last_updated: Date.now(),
+  },
+];
+
+export const INITIAL_SEED_CANVASES: CanvasData[] = [
+  {
+    id: 'canvas-master-web',
+    title: 'Master World Web',
+    type: 'world-web',
+    nodes: [
+      {
+        id: 'node-welcome-gaea-forge',
+        articleId: 'welcome-gaea-forge',
+        label: 'Welcome to Gaea-Forge',
+        role: 'Guide & Overview',
+        category: 'Campaign Notes',
+        x: 400,
+        y: 250,
+      },
+    ],
+    connections: [],
+    last_updated: Date.now(),
+  },
+  {
+    id: 'canvas-family-tree',
+    title: 'Family Tree Canvas',
+    type: 'family-tree',
+    nodes: [],
+    connections: [],
     last_updated: Date.now(),
   },
 ];
@@ -130,7 +200,7 @@ export const getDatabase = async (): Promise<GaeaDatabase> => {
   if (!dbPromise) {
     dbPromise = (async () => {
       const db = await createRxDatabase<GaeaDatabaseCollections>({
-        name: 'gaeafdb_v3',
+        name: 'gaeafdb_v6',
         storage: getRxStorageDexie(),
         ignoreDuplicate: true,
       });

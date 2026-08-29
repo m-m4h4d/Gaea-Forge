@@ -38,6 +38,7 @@ export type CanvasNode = {
   category: string;
   x: number;
   y: number;
+  z?: number;
   avatarUrl?: string;
 };
 

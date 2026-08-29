@@ -9,6 +9,7 @@ import {
   LoreArticle,
 } from '@/lib/database';
 import NodeConnectModal from './NodeConnectModal';
+import WorldWebCanvas3D from './WorldWebCanvas3D';
 
 interface WorldWebCanvasProps {
   canvasData: CanvasData;
@@ -26,6 +27,7 @@ export default function WorldWebCanvas({
   articles,
   onOpenArticle,
 }: WorldWebCanvasProps) {
+  const [is3DMode, setIs3DMode] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -262,11 +264,31 @@ export default function WorldWebCanvas({
     });
   }
 
+  if (is3DMode) {
+    return (
+      <WorldWebCanvas3D
+        canvasData={canvasData}
+        onChange={onChange}
+        articles={articles}
+        onOpenArticle={onOpenArticle}
+        onSwitchTo2D={() => setIs3DMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-[#111216] text-parchment relative overflow-hidden select-none">
       {/* Top Toolbar */}
       <div className="bg-[#18191e]/90 border-b border-slate-800/80 p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 z-30 backdrop-blur-md overflow-x-auto custom-scrollbar">
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setIs3DMode(true)}
+            className="px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-purple-600/20 border border-gold/40 text-gold hover:border-gold font-bold rounded-lg text-xs shadow-sm shadow-gold/10 flex items-center gap-1.5 transition-all shrink-0"
+            title="Switch to Interactive 3D Cosmos Space"
+          >
+            <span>🌌</span> <span>3D Cosmos</span>
+          </button>
+
           <button
             onClick={handleAddFreeNode}
             className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"

@@ -26,7 +26,21 @@ export default function Home() {
   const [activeArticleId, setActiveArticleId] = useState<string>('welcome-gaea-forge');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    () => new Set(LORE_CATEGORIES)
+  );
+
+  const toggleCategoryExpanded = (cat: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) {
+        next.delete(cat);
+      } else {
+        next.add(cat);
+      }
+      return next;
+    });
+  };
 
   // View Mode: 'editor' | 'canvas'
   const [activeViewMode, setActiveViewMode] = useState<'editor' | 'canvas'>('editor');
@@ -400,7 +414,7 @@ export default function Home() {
     }
   };
 
-  // Filter articles based on search, category, tag
+  // Filter articles based on search, tag
   const filteredArticles = articles.filter((art) => {
     const matchesSearch =
       searchQuery.trim() === '' ||
@@ -413,12 +427,9 @@ export default function Home() {
           p.value.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
-    const matchesCategory =
-      !selectedCategoryFilter || art.category === selectedCategoryFilter;
-
     const matchesTag = !selectedTagFilter || art.tags.includes(selectedTagFilter);
 
-    return matchesSearch && matchesCategory && matchesTag;
+    return matchesSearch && matchesTag;
   });
 
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
@@ -595,37 +606,37 @@ export default function Home() {
                 <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
                   Lore Categories
                 </span>
-                {selectedCategoryFilter && (
-                  <button
-                    onClick={() => setSelectedCategoryFilter(null)}
-                    className="text-[10px] text-gold hover:underline"
-                  >
-                    Show All
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    if (expandedCategories.size > 0) {
+                      setExpandedCategories(new Set());
+                    } else {
+                      setExpandedCategories(new Set(LORE_CATEGORIES));
+                    }
+                  }}
+                  className="text-[10px] text-slate-500 hover:text-gold transition-colors"
+                >
+                  {expandedCategories.size > 0 ? 'Collapse All' : 'Expand All'}
+                </button>
               </div>
 
               <div className="space-y-3">
                 {LORE_CATEGORIES.map((cat) => {
                   const categoryArticles = filteredArticles.filter((a) => a.category === cat);
-                  const isSelectedCat = selectedCategoryFilter === cat;
+                  const isExpanded = expandedCategories.has(cat);
 
                   return (
                     <div key={cat} className="space-y-1">
                       <div className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/50 group">
                         <button
-                          onClick={() =>
-                            setSelectedCategoryFilter(isSelectedCat ? null : cat)
-                          }
-                          className={`text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors ${
-                            isSelectedCat ? 'text-gold' : 'text-slate-300 group-hover:text-gold'
-                          }`}
+                          onClick={() => toggleCategoryExpanded(cat)}
+                          className="text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors text-slate-300 group-hover:text-gold"
                         >
-                          <span className="text-slate-500 text-[10px]">{isSelectedCat ? '▼' : '▶'}</span>
+                          <span className="text-slate-500 text-[10px] w-2.5 inline-block">{isExpanded ? '▼' : '▶'}</span>
                           {cat}
                         </button>
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">
                             {categoryArticles.length}
                           </span>
                           <button
@@ -642,25 +653,31 @@ export default function Home() {
                       </div>
 
                       {/* Article list under category */}
-                      {categoryArticles.length > 0 && (
+                      {isExpanded && (
                         <ul className="space-y-0.5 pl-3 border-l border-slate-800 ml-2">
-                          {categoryArticles.map((art) => (
-                            <li key={art.id}>
-                              <button
-                                onClick={() => {
-                                  setActiveArticleId(art.id);
-                                  setActiveViewMode('editor');
-                                }}
-                                className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
-                                  activeArticleId === art.id && activeViewMode === 'editor'
-                                    ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
-                                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                                }`}
-                              >
-                                {art.title}
-                              </button>
+                          {categoryArticles.length > 0 ? (
+                            categoryArticles.map((art) => (
+                              <li key={art.id}>
+                                <button
+                                  onClick={() => {
+                                    setActiveArticleId(art.id);
+                                    setActiveViewMode('editor');
+                                  }}
+                                  className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
+                                    activeArticleId === art.id && activeViewMode === 'editor'
+                                      ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
+                                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {art.title}
+                                </button>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-[10px] text-slate-600 px-2 py-0.5 italic">
+                              {searchQuery || selectedTagFilter ? 'No matching lore' : 'No articles yet'}
                             </li>
-                          ))}
+                          )}
                         </ul>
                       )}
                     </div>

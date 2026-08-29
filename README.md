@@ -9,8 +9,9 @@ Gaea Forge is a privacy-first, offline-capable digital workbench designed for wr
 ## ✨ Features
 
 - 📖 **Rich Lore Codex & Editor**: Powered by TipTap WYSIWYG editor with support for custom entity properties (attributes, stats, traits), categories, and quick tag filters.
+- 🌌 **3D Interactive Cosmos Canvas**: Real-time 3D WebGL universe powered by **Three.js** with 360° orbit rotation, category-themed glowing celestial bodies, luminous constellation beams, raycasting HUD, and cinematic galaxy auto-rotation.
 - 🌳 **Family Tree & Dynasty Canvas**: Interactive visual hierarchy editor to map genealogical lineages, mentorships, alliances, and ancestral trees.
-- 🕸️ **World Web Relationship Canvas**: Graph-based node map for complex entity connections (alliances, rivalries, trade routes, political factions).
+- 🕸️ **World Web Relationship Canvas**: Dual-mode (2D Map & 3D Cosmos) node graph for complex entity connections (alliances, rivalries, trade routes, political factions).
 - ⚡ **Local-First Reactive Database**: Integrated with **RxDB** and **Dexie/IndexedDB**, giving zero-latency local queries and automatic state reactivity.
 - 🖥️ **Native Desktop & Web Support**: Runs as a lightweight native desktop app powered by **Tauri v2 (Rust)** or as a responsive web app with **Next.js 16 & React 19**.
 - 📦 **Data Portability**: Complete Export and Import functionality in JSON format for offline backups and sharing.
@@ -23,6 +24,7 @@ Gaea Forge is a privacy-first, offline-capable digital workbench designed for wr
 | :--- | :--- |
 | **Desktop Shell** | [Tauri v2](https://v2.tauri.app/) (Rust + WebView2) |
 | **Frontend Framework** | [Next.js 16](https://nextjs.org/) (App Router & Turbopack) |
+| **3D Graphics Engine** | [Three.js](https://threejs.org/) (WebGL / OrbitControls) |
 | **UI & Components** | [React 19](https://react.dev/), [Tailwind CSS v4](https://tailwindcss.com/) |
 | **Rich Text Editor** | [TipTap](https://tiptap.dev/) |
 | **Local Database** | [RxDB](https://rxdb.info/) + [Dexie.js](https://dexie.org/) (IndexedDB) |

@@ -12,12 +12,14 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/react": "^3.23.1",
     "@tiptap/starter-kit": "^3.23.1",
+    "@types/three": "^0.185.4",
     "idb": "^8.0.3",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "rxdb": "^17.2.0",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "gaea-forge",
+  "productName": "Gaea Forge",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
@@ -12,11 +12,15 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Gaea-Forge",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 800,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true,
+        "focus": true,
+        "visible": true
       }
     ],
     "security": {

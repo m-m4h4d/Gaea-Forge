@@ -1,15 +1,5 @@
-import { createRxDatabase, addRxPlugin, RxDatabase, RxCollection } from 'rxdb';
+import { createRxDatabase, RxDatabase, RxCollection } from 'rxdb';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
-import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
-
-// Add dev mode plugin only in development
-if (process.env.NODE_ENV === 'development') {
-  try {
-    addRxPlugin(RxDBDevModePlugin);
-  } catch {
-    // ignore if plugin registered multiple times in HMR
-  }
-}
 
 export type EntityProperty = {
   key: string;

@@ -63,7 +63,7 @@ export default function ExportImportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-lg p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
         <h2 className="text-xl font-bold text-gold tracking-wide mb-1">Export & Import World Data</h2>
         <p className="text-xs text-slate-400 mb-6">Backup your entire world lore to local JSON files or restore from a previous backup.</p>
 

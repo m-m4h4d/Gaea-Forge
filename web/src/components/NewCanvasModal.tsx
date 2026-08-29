@@ -34,7 +34,7 @@ export default function NewCanvasModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 select-none">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
         <h2 className="text-xl font-bold text-gold tracking-wide mb-1 flex items-center gap-2">
           <span>🎨</span> Create New World Canvas
         </h2>

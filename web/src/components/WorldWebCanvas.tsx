@@ -265,33 +265,33 @@ export default function WorldWebCanvas({
   return (
     <div className="w-full h-full flex flex-col bg-[#111216] text-parchment relative overflow-hidden select-none">
       {/* Top Toolbar */}
-      <div className="bg-[#18191e]/90 border-b border-slate-800/80 p-3 flex flex-wrap items-center justify-between gap-2 shrink-0 z-30 backdrop-blur-md">
-        <div className="flex items-center gap-2">
+      <div className="bg-[#18191e]/90 border-b border-slate-800/80 p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 z-30 backdrop-blur-md overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleAddFreeNode}
-            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all"
+            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"
           >
             <span>+</span> Add Floating Node
           </button>
           <button
             onClick={handleAutoArrangeWeb}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-xs border border-slate-700 transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-xs border border-slate-700 transition-colors flex items-center gap-1 shrink-0"
           >
             <span>⚡</span> Auto-Arrange Constellation
           </button>
-          <span className="text-xs text-slate-400 font-medium ml-2">
+          <span className="text-xs text-slate-400 font-medium ml-2 shrink-0 hidden sm:inline">
             <strong>{nodes.length}</strong> Floating Points
           </span>
         </div>
 
-        <div className="text-xs text-slate-400 hidden md:flex items-center gap-3">
+        <div className="text-xs text-slate-400 hidden lg:flex items-center gap-3 shrink-0">
           <span>💡 <em>Click any point/label to open Lore</em></span>
           <span>•</span>
           <span><em>Drag ring to connect points</em></span>
         </div>
 
         {/* Zoom Controls */}
-        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-1">
+        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg p-1 shrink-0">
           <button
             onClick={() => setZoom((z) => Math.max(0.4, z - 0.15))}
             className="w-7 h-7 flex items-center justify-center text-xs font-bold bg-slate-900 hover:bg-slate-800 rounded text-slate-300"

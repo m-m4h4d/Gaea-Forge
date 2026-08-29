@@ -52,6 +52,8 @@ export default function Home() {
   const [newModalCategory, setNewModalCategory] = useState<LoreCategory>('Characters');
 
   // UI state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
@@ -63,6 +65,21 @@ export default function Home() {
   const [newPropValue, setNewPropValue] = useState('');
 
   const [, startTransition] = useTransition();
+
+  // Responsive screen size listener to auto-adjust sidebars
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1100) {
+        setIsInspectorOpen(false);
+      }
+      if (window.innerWidth < 768) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize RxDB
   useEffect(() => {
@@ -410,288 +427,317 @@ export default function Home() {
   return (
     <div className="flex h-screen w-full bg-slate-950 text-parchment overflow-hidden select-none font-sans">
       {/* LEFT SIDEBAR: Navigation, Categories, Canvases & Search */}
-      <aside className="w-72 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl z-20">
-        {/* App Title & Header Actions */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-          <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="Gaea-Forge Logo"
-              className="w-9 h-9 rounded-lg object-cover border border-gold/30 shadow-md shadow-gold/20"
-            />
-            <div>
-              <h1 className="text-base font-bold tracking-wider text-gold">Gaea-Forge</h1>
-              <p className="text-[10px] text-slate-500 tracking-tight">Local World Architect</p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition-colors"
-            title="Backup / Restore World Data"
-          >
-            💾 Backup
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="p-3 border-b border-slate-800 bg-slate-900/50">
-          <div className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search title, lore, tags..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-parchment placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
-            />
-            <span className="absolute left-2.5 top-1.5 text-slate-500 text-xs">🔍</span>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1.5 text-slate-500 hover:text-gold text-xs"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Active Tag Filter Indicator */}
-          {selectedTagFilter && (
-            <div className="mt-2 flex items-center justify-between bg-gold/10 border border-gold/30 rounded px-2 py-1 text-xs text-gold">
-              <span>Tag filter: <strong>#{selectedTagFilter}</strong></span>
-              <button onClick={() => setSelectedTagFilter(null)} className="hover:text-white font-bold">
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Categories & Canvases Navigation */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-5 custom-scrollbar">
-          {/* World Canvases Section */}
-          <div>
-            <div className="flex items-center justify-between px-2 mb-2">
-              <span className="font-semibold text-gold uppercase text-[10px] tracking-wider flex items-center gap-1">
-                <span>🎨</span> World Canvases
-              </span>
-              <button
-                onClick={() => setIsNewCanvasModalOpen(true)}
-                className="text-[10px] text-slate-400 hover:text-gold font-bold px-1 rounded transition-colors"
-                title="Create New Canvas"
-              >
-                + New
-              </button>
-            </div>
-
-            <ul className="space-y-1">
-              {canvases.map((canvas) => (
-                <li key={canvas.id} className="group relative flex items-center">
-                  <button
-                    onClick={() => {
-                      setActiveCanvasId(canvas.id);
-                      setActiveViewMode('canvas');
-                    }}
-                    className={`w-full text-left py-1.5 pl-2.5 pr-7 rounded-lg text-xs flex items-center justify-between transition-all ${
-                      activeCanvasId === canvas.id && activeViewMode === 'canvas'
-                        ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
-                        : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
-                    }`}
-                  >
-                    <span className="truncate flex items-center gap-1.5">
-                      <span>{canvas.type === 'world-web' ? '🌐' : '🌳'}</span>
-                      {canvas.title}
-                    </span>
-                    <span className="text-[9px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
-                      {canvas.type === 'world-web' ? 'Web' : 'Tree'}
-                    </span>
-                  </button>
-
-                  {canvases.length > 1 && (
-                    <button
-                      onClick={(e) => handleDeleteCanvas(canvas.id, e)}
-                      className={`absolute right-1.5 text-xs p-1 rounded transition-opacity ${
-                        activeCanvasId === canvas.id && activeViewMode === 'canvas'
-                          ? 'text-slate-900 hover:text-red-700 font-bold'
-                          : 'text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 font-bold'
-                      }`}
-                      title={`Delete ${canvas.title}`}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Pinned Articles Section */}
-          {pinnedArticles.length > 0 && (
-            <div>
-              <div className="font-semibold text-gold uppercase text-[10px] tracking-wider mb-1.5 px-2 flex items-center gap-1">
-                <span>📌</span> Pinned Lore
+      <aside
+        className={`${
+          isSidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none pointer-events-none'
+        } shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-300 ease-in-out relative`}
+      >
+        <div className="w-72 flex flex-col h-full shrink-0">
+          {/* App Title & Header Actions */}
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="flex items-center gap-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="Gaea-Forge Logo"
+                className="w-9 h-9 rounded-lg object-cover border border-gold/30 shadow-md shadow-gold/20"
+              />
+              <div>
+                <h1 className="text-base font-bold tracking-wider text-gold">Gaea-Forge</h1>
+                <p className="text-[10px] text-slate-500 tracking-tight">Local World Architect</p>
               </div>
-              <ul className="space-y-1">
-                {pinnedArticles.map((art) => (
-                  <li key={`pinned-${art.id}`}>
-                    <button
-                      onClick={() => {
-                        setActiveArticleId(art.id);
-                        setActiveViewMode('editor');
-                      }}
-                      className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
-                        activeArticleId === art.id && activeViewMode === 'editor'
-                          ? 'bg-gold text-slate-950 font-semibold shadow-md shadow-gold/10'
-                          : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
-                      }`}
-                    >
-                      <span className="truncate">{art.title}</span>
-                      <span className="text-[10px] opacity-75 shrink-0 ml-1">{art.category.slice(0, 3)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
             </div>
-          )}
 
-          {/* Category Folders */}
-          <div>
-            <div className="flex items-center justify-between px-2 mb-2">
-              <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
-                Lore Categories
-              </span>
-              {selectedCategoryFilter && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition-colors"
+                title="Backup / Restore World Data"
+              >
+                💾 Backup
+              </button>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-gold rounded-lg text-xs transition-colors"
+                title="Collapse Sidebar"
+              >
+                ◀
+              </button>
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="p-3 border-b border-slate-800 bg-slate-900/50">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search title, lore, tags..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-parchment placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
+              />
+              <span className="absolute left-2.5 top-1.5 text-slate-500 text-xs">🔍</span>
+              {searchQuery && (
                 <button
-                  onClick={() => setSelectedCategoryFilter(null)}
-                  className="text-[10px] text-gold hover:underline"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1.5 text-slate-500 hover:text-gold text-xs"
                 >
-                  Show All
+                  ✕
                 </button>
               )}
             </div>
 
-            <div className="space-y-3">
-              {LORE_CATEGORIES.map((cat) => {
-                const categoryArticles = filteredArticles.filter((a) => a.category === cat);
-                const isSelectedCat = selectedCategoryFilter === cat;
+            {/* Active Tag Filter Indicator */}
+            {selectedTagFilter && (
+              <div className="mt-2 flex items-center justify-between bg-gold/10 border border-gold/30 rounded px-2 py-1 text-xs text-gold">
+                <span>Tag filter: <strong>#{selectedTagFilter}</strong></span>
+                <button onClick={() => setSelectedTagFilter(null)} className="hover:text-white font-bold">
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
 
-                return (
-                  <div key={cat} className="space-y-1">
-                    <div className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/50 group">
+          {/* Categories & Canvases Navigation */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-5 custom-scrollbar">
+            {/* World Canvases Section */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="font-semibold text-gold uppercase text-[10px] tracking-wider flex items-center gap-1">
+                  <span>🎨</span> World Canvases
+                </span>
+                <button
+                  onClick={() => setIsNewCanvasModalOpen(true)}
+                  className="text-[10px] text-slate-400 hover:text-gold font-bold px-1 rounded transition-colors"
+                  title="Create New Canvas"
+                >
+                  + New
+                </button>
+              </div>
+
+              <ul className="space-y-1">
+                {canvases.map((canvas) => (
+                  <li key={canvas.id} className="group relative flex items-center">
+                    <button
+                      onClick={() => {
+                        setActiveCanvasId(canvas.id);
+                        setActiveViewMode('canvas');
+                      }}
+                      className={`w-full text-left py-1.5 pl-2.5 pr-7 rounded-lg text-xs flex items-center justify-between transition-all ${
+                        activeCanvasId === canvas.id && activeViewMode === 'canvas'
+                          ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
+                          : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
+                      }`}
+                    >
+                      <span className="truncate flex items-center gap-1.5">
+                        <span>{canvas.type === 'world-web' ? '🌐' : '🌳'}</span>
+                        {canvas.title}
+                      </span>
+                      <span className="text-[9px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
+                        {canvas.type === 'world-web' ? 'Web' : 'Tree'}
+                      </span>
+                    </button>
+
+                    {canvases.length > 1 && (
                       <button
-                        onClick={() =>
-                          setSelectedCategoryFilter(isSelectedCat ? null : cat)
-                        }
-                        className={`text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors ${
-                          isSelectedCat ? 'text-gold' : 'text-slate-300 group-hover:text-gold'
+                        onClick={(e) => handleDeleteCanvas(canvas.id, e)}
+                        className={`absolute right-1.5 text-xs p-1 rounded transition-opacity ${
+                          activeCanvasId === canvas.id && activeViewMode === 'canvas'
+                            ? 'text-slate-900 hover:text-red-700 font-bold'
+                            : 'text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 font-bold'
+                        }`}
+                        title={`Delete ${canvas.title}`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Pinned Articles Section */}
+            {pinnedArticles.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between px-2 mb-2">
+                  <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider flex items-center gap-1">
+                    <span>📌</span> Pinned Codex
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {pinnedArticles.map((art) => (
+                    <li key={art.id}>
+                      <button
+                        onClick={() => {
+                          setActiveArticleId(art.id);
+                          setActiveViewMode('editor');
+                        }}
+                        className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
+                          activeArticleId === art.id && activeViewMode === 'editor'
+                            ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
+                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-gold'
                         }`}
                       >
-                        <span className="text-slate-500 text-[10px]">{isSelectedCat ? '▼' : '▶'}</span>
-                        {cat}
-                      </button>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full">
-                          {categoryArticles.length}
+                        <span className="truncate">{art.title}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0 ml-1 font-mono">
+                          {art.category.slice(0, 3)}
                         </span>
-                        <button
-                          onClick={() => {
-                            setNewModalCategory(cat);
-                            setIsNewModalOpen(true);
-                          }}
-                          className="text-xs text-slate-500 hover:text-gold px-1 rounded transition-colors opacity-0 group-hover:opacity-100"
-                          title={`Add new article in ${cat}`}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-                    {/* Article list under category */}
-                    {categoryArticles.length > 0 && (
-                      <ul className="space-y-0.5 pl-3 border-l border-slate-800 ml-2">
-                        {categoryArticles.map((art) => (
-                          <li key={art.id}>
-                            <button
-                              onClick={() => {
-                                setActiveArticleId(art.id);
-                                setActiveViewMode('editor');
-                              }}
-                              className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
-                                activeArticleId === art.id && activeViewMode === 'editor'
-                                  ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
-                                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                              }`}
-                            >
-                              {art.title}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Category Folders */}
+            <div>
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
+                  Lore Categories
+                </span>
+                {selectedCategoryFilter && (
+                  <button
+                    onClick={() => setSelectedCategoryFilter(null)}
+                    className="text-[10px] text-gold hover:underline"
+                  >
+                    Show All
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {LORE_CATEGORIES.map((cat) => {
+                  const categoryArticles = filteredArticles.filter((a) => a.category === cat);
+                  const isSelectedCat = selectedCategoryFilter === cat;
+
+                  return (
+                    <div key={cat} className="space-y-1">
+                      <div className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/50 group">
+                        <button
+                          onClick={() =>
+                            setSelectedCategoryFilter(isSelectedCat ? null : cat)
+                          }
+                          className={`text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors ${
+                            isSelectedCat ? 'text-gold' : 'text-slate-300 group-hover:text-gold'
+                          }`}
+                        >
+                          <span className="text-slate-500 text-[10px]">{isSelectedCat ? '▼' : '▶'}</span>
+                          {cat}
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full">
+                            {categoryArticles.length}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setNewModalCategory(cat);
+                              setIsNewModalOpen(true);
+                            }}
+                            className="text-xs text-slate-500 hover:text-gold px-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                            title={`Add new article in ${cat}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Article list under category */}
+                      {categoryArticles.length > 0 && (
+                        <ul className="space-y-0.5 pl-3 border-l border-slate-800 ml-2">
+                          {categoryArticles.map((art) => (
+                            <li key={art.id}>
+                              <button
+                                onClick={() => {
+                                  setActiveArticleId(art.id);
+                                  setActiveViewMode('editor');
+                                }}
+                                className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
+                                  activeArticleId === art.id && activeViewMode === 'editor'
+                                    ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
+                                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                }`}
+                              >
+                                {art.title}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer Quick Add Button */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/80">
-          <button
-            onClick={() => {
-              setNewModalCategory('Characters');
-              setIsNewModalOpen(true);
-            }}
-            className="w-full py-2 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-400 hover:to-gold text-slate-950 font-bold rounded-lg text-xs shadow-lg shadow-gold/20 flex items-center justify-center gap-1.5 transition-all"
-          >
-            <span>+</span> New Lore Article
-          </button>
+          {/* Footer Quick Add Button */}
+          <div className="p-3 border-t border-slate-800 bg-slate-950/80">
+            <button
+              onClick={() => {
+                setNewModalCategory('Characters');
+                setIsNewModalOpen(true);
+              }}
+              className="w-full py-2 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-400 hover:to-gold text-slate-950 font-bold rounded-lg text-xs shadow-lg shadow-gold/20 flex items-center justify-center gap-1.5 transition-all"
+            >
+              <span>+</span> New Lore Article
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* MAIN CONTENT AREA: Navbar Mode Switcher & Workspace */}
-      <main className="flex-1 flex flex-col bg-[#0b1120] relative overflow-hidden">
+      <main className="flex-1 flex flex-col bg-[#0b1120] relative overflow-hidden min-w-0">
         {/* Top Navbar with View Switcher Tabs */}
-        <header className="h-14 border-b border-slate-800 flex items-center px-6 justify-between shrink-0 bg-slate-900/80 backdrop-blur-md z-10">
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+        <header className="h-14 border-b border-slate-800 flex items-center px-3 sm:px-6 justify-between shrink-0 bg-slate-900/80 backdrop-blur-md z-10 gap-2">
+          {/* Mode Switcher Tabs & Sidebar Toggle */}
+          <div className="flex items-center gap-2 min-w-0">
+            {!isSidebarOpen && (
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-gold/60 text-gold rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0"
+                title="Open Sidebar"
+              >
+                <span>☰</span> <span className="hidden md:inline">Codex</span>
+              </button>
+            )}
+
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
               <button
                 onClick={() => setActiveViewMode('editor')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeViewMode === 'editor'
                     ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>📄</span> Lore Editor
+                <span>📄</span> <span className="hidden sm:inline">Lore Editor</span><span className="sm:hidden">Editor</span>
               </button>
               <button
                 onClick={() => setActiveViewMode('canvas')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeViewMode === 'canvas'
                     ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>{activeCanvas.type === 'world-web' ? '🌐' : '🌳'}</span> Canvas: {activeCanvas.title}
+                <span>{activeCanvas.type === 'world-web' ? '🌐' : '🌳'}</span> <span className="hidden sm:inline">Canvas: {activeCanvas.title}</span><span className="sm:hidden">Canvas</span>
               </button>
             </div>
 
             {activeViewMode === 'editor' && (
-              <div className="hidden lg:flex items-center gap-2 text-xs text-slate-400 ml-3">
+              <div className="hidden xl:flex items-center gap-2 text-xs text-slate-400 ml-2 truncate">
                 <span className="text-slate-500 font-semibold">Path:</span>
-                <span className="text-slate-400 font-medium">{activeArticle?.category || 'General'}</span>
+                <span className="text-slate-400 font-medium truncate">{activeArticle?.category || 'General'}</span>
                 <span>/</span>
-                <span className="text-gold font-bold">{activeArticle?.title || 'Untitled Entity'}</span>
+                <span className="text-gold font-bold truncate max-w-[160px]">{activeArticle?.title || 'Untitled Entity'}</span>
               </div>
             )}
           </div>
 
           {/* Right Header Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Auto-save status */}
-            <div className="text-xs text-slate-400 flex items-center gap-1.5">
+            <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5">
               {isSaving ? (
                 <span className="text-amber-400 animate-pulse">Saving...</span>
               ) : isSavedToast ? (
@@ -703,6 +749,19 @@ export default function Home() {
 
             {activeViewMode === 'editor' && (
               <>
+                {/* Inspector Toggle Button */}
+                <button
+                  onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    isInspectorOpen
+                      ? 'bg-gold/20 border-gold text-gold shadow-sm shadow-gold/10'
+                      : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={isInspectorOpen ? 'Hide Entity Inspector' : 'Show Entity Inspector'}
+                >
+                  <span>⚜</span> <span className="hidden md:inline">Inspector</span>
+                </button>
+
                 {/* Pin Toggle Button */}
                 <button
                   onClick={handleTogglePin}
@@ -713,15 +772,15 @@ export default function Home() {
                   }`}
                   title={activeArticle?.isPinned ? 'Unpin Article' : 'Pin Article to top'}
                 >
-                  📌 {activeArticle?.isPinned ? 'Pinned' : 'Pin'}
+                  📌 <span className="hidden sm:inline">{activeArticle?.isPinned ? 'Pinned' : 'Pin'}</span>
                 </button>
 
                 {/* Manual Save Button */}
                 <button
                   onClick={() => activeArticle && updateArticle(activeArticle)}
-                  className="px-4 py-1.5 bg-gold text-slate-950 rounded-lg font-bold text-xs hover:bg-gold-hover transition-colors shadow-md shadow-gold/20"
+                  className="px-3 sm:px-4 py-1.5 bg-gold text-slate-950 rounded-lg font-bold text-xs hover:bg-gold-hover transition-colors shadow-md shadow-gold/20"
                 >
-                  Save Now
+                  Save
                 </button>
               </>
             )}
@@ -732,16 +791,16 @@ export default function Home() {
                 className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 text-red-400 hover:bg-red-900 hover:text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
                 title="Delete this canvas"
               >
-                <span>🗑️</span> Delete Canvas
+                <span>🗑️</span> <span className="hidden sm:inline">Delete Canvas</span>
               </button>
             )}
           </div>
         </header>
 
         {/* Canvas or Editor Workspace */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden relative min-w-0">
           {activeViewMode === 'editor' ? (
-            <div className="w-full h-full p-6">
+            <div className="w-full h-full p-2 sm:p-4 md:p-6 min-w-0 flex flex-col">
               {activeArticle ? (
                 <Editor
                   key={activeArticle.id}
@@ -778,25 +837,39 @@ export default function Home() {
 
       {/* RIGHT SIDEBAR: Entity Metadata Inspector (Visible in Editor mode) */}
       {activeViewMode === 'editor' && (
-        <aside className="w-80 flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col shadow-2xl z-20">
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-            <h2 className="font-bold text-gold tracking-wide text-sm flex items-center gap-1.5">
-              <span>⚜</span> Entity Inspector
-            </h2>
-            {activeArticle && (
-              <button
-                onClick={handleDeleteActiveArticle}
-                className="text-xs text-red-400 hover:text-red-300 hover:underline"
-                title="Delete this article"
-              >
-                Delete
-              </button>
-            )}
-          </div>
+        <aside
+          className={`${
+            isInspectorOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden border-none pointer-events-none'
+          } shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col shadow-2xl z-20 transition-all duration-300 ease-in-out relative`}
+        >
+          <div className="w-80 flex flex-col h-full shrink-0">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <h2 className="font-bold text-gold tracking-wide text-sm flex items-center gap-1.5">
+                <span>⚜</span> Entity Inspector
+              </h2>
+              <div className="flex items-center gap-2">
+                {activeArticle && (
+                  <button
+                    onClick={handleDeleteActiveArticle}
+                    className="text-xs text-red-400 hover:text-red-300 hover:underline"
+                    title="Delete this article"
+                  >
+                    Delete
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsInspectorOpen(false)}
+                  className="p-1 text-slate-400 hover:text-gold hover:bg-slate-800 rounded transition-colors text-xs font-bold"
+                  title="Close Inspector"
+                >
+                  ▶
+                </button>
+              </div>
+            </div>
 
-          {activeArticle ? (
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs custom-scrollbar">
-              {/* Cover Image Header */}
+            {activeArticle ? (
+              <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs custom-scrollbar">
+                {/* Cover Image Header */}
               <div>
                 <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
                   Entity Artwork / Map
@@ -1014,6 +1087,7 @@ export default function Home() {
           ) : (
             <div className="p-4 text-xs text-slate-500">No entity selected.</div>
           )}
+          </div>
         </aside>
       )}
 

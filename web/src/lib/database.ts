@@ -189,25 +189,29 @@ export const getDatabase = async (): Promise<GaeaDatabase> => {
 
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await createRxDatabase<GaeaDatabaseCollections>({
-        name: 'gaeafdb_v6',
-        storage: getRxStorageDexie(),
-        ignoreDuplicate: true,
-      });
+      try {
+        const db = await createRxDatabase<GaeaDatabaseCollections>({
+          name: 'gaeafdb_v6',
+          storage: getRxStorageDexie(),
+        });
 
-      await db.addCollections({
-        articles: {
-          schema: loreArticleSchema,
-        },
-      });
+        await db.addCollections({
+          articles: {
+            schema: loreArticleSchema,
+          },
+        });
 
-      // Seed if empty
-      const count = await db.articles.count().exec();
-      if (count === 0) {
-        await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
+        // Seed if empty
+        const count = await db.articles.count().exec();
+        if (count === 0) {
+          await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
+        }
+
+        return db;
+      } catch (err) {
+        dbPromise = null;
+        throw err;
       }
-
-      return db;
     })();
   }
   return dbPromise;

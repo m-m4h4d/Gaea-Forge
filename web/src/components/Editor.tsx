@@ -21,7 +21,7 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[500px] p-6 text-parchment font-serif leading-relaxed',
+        class: 'prose prose-invert max-w-none focus:outline-none min-h-[350px] p-3 sm:p-6 text-parchment font-serif leading-relaxed',
       },
     },
   });
@@ -46,11 +46,11 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
   const characterCount = textContent.length;
 
   return (
-    <div className="w-full h-full flex flex-col bg-slate-900/90 text-parchment rounded-xl shadow-2xl overflow-hidden border border-slate-800 backdrop-blur-md">
+    <div className="w-full h-full flex flex-col min-w-0 bg-slate-900/90 text-parchment rounded-xl shadow-2xl overflow-hidden border border-slate-800 backdrop-blur-md">
       {/* Toolbar */}
-      <div className="bg-slate-950/80 border-b border-slate-800 p-2.5 flex flex-wrap items-center gap-1.5 shrink-0 select-none">
+      <div className="bg-slate-950/80 border-b border-slate-800 p-2 sm:p-2.5 flex items-center gap-1.5 shrink-0 select-none overflow-x-auto custom-scrollbar">
         {/* Headings */}
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1">
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1 shrink-0">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -92,7 +92,7 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
         <div className="h-4 w-px bg-slate-800 mx-1" />
 
         {/* Text Styles */}
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1">
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1 shrink-0">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBold().run()}
@@ -143,10 +143,10 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
           </button>
         </div>
 
-        <div className="h-4 w-px bg-slate-800 mx-1" />
+        <div className="h-4 w-px bg-slate-800 mx-1 shrink-0" />
 
         {/* Lists & Blocks */}
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1">
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1 shrink-0">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -193,10 +193,10 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
           </button>
         </div>
 
-        <div className="h-4 w-px bg-slate-800 mx-1" />
+        <div className="h-4 w-px bg-slate-800 mx-1 shrink-0" />
 
         {/* Undo / Redo */}
-        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1 ml-auto">
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded p-1 shrink-0 sm:ml-auto">
           <button
             type="button"
             onClick={() => editor.chain().focus().undo().run()}

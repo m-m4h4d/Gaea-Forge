@@ -16,6 +16,8 @@
         "title": "Gaea-Forge",
         "width": 1280,
         "height": 800,
+        "minWidth": 720,
+        "minHeight": 500,
         "resizable": true,
         "fullscreen": false,
         "center": true,

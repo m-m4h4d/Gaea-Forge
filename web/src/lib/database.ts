@@ -68,7 +68,8 @@ export const LORE_CATEGORIES = [
   'Campaign Notes',
 ] as const;
 
-export type LoreCategory = typeof LORE_CATEGORIES[number];
+export const DEFAULT_LORE_CATEGORIES = [...LORE_CATEGORIES];
+export type LoreCategory = string;
 
 export const loreArticleSchema = {
   version: 0,

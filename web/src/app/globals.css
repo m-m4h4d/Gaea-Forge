@@ -2,29 +2,43 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #0f172a; /* slate-900 */
-  --foreground: #fef3c7; /* parchment */
+  --theme-accent: #fbbf24;
+  --theme-accent-hover: #f59e0b;
+  --theme-accent-light: rgba(251, 191, 36, 0.15);
+  --theme-accent-glow: rgba(251, 191, 36, 0.25);
+  --theme-bg: #0b0f19;
+  --theme-surface: #0f172a;
+  --theme-card: #070b14;
+  --theme-border: #1e293b;
+  --theme-text: #fef3c7;
+  --theme-text-muted: #94a3b8;
+
+  --background: var(--theme-bg);
+  --foreground: var(--theme-text);
+  --color-gold: var(--theme-accent);
+  --color-gold-hover: var(--theme-accent-hover);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--theme-bg);
+  --color-foreground: var(--theme-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
   --color-slate-900: #0f172a;
   --color-slate-800: #1e293b;
   --color-slate-700: #334155;
-  --color-gold: #fbbf24;
-  --color-gold-hover: #f59e0b;
-  --color-parchment: #fef3c7;
-  --color-parchment-muted: #fde68a;
+  --color-gold: var(--theme-accent);
+  --color-gold-hover: var(--theme-accent-hover);
+  --color-parchment: var(--theme-text);
+  --color-parchment-muted: var(--theme-text-muted);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--theme-bg);
+  color: var(--theme-text);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -39,5 +53,5 @@ body {
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #fbbf24;
+  background: var(--theme-accent);
 }

@@ -4,13 +4,13 @@ import React, { useState, useEffect, useTransition, useCallback } from 'react';
 import Editor from '@/components/Editor';
 import NewArticleModal from '@/components/NewArticleModal';
 import NewCanvasModal from '@/components/NewCanvasModal';
-import ExportImportModal from '@/components/ExportImportModal';
+import DocumentImportModal from '@/components/DocumentImportModal';
+import OnboardingModal from '@/components/OnboardingModal';
 import FamilyTreeCanvas from '@/components/FamilyTreeCanvas';
 import WorldWebCanvas from '@/components/WorldWebCanvas';
 import {
   getDatabase,
   LoreArticle,
-  LORE_CATEGORIES,
   LoreCategory,
   EntityProperty,
   INITIAL_SEED_ARTICLES,
@@ -19,6 +19,13 @@ import {
   CanvasType,
   GaeaDatabase,
 } from '@/lib/database';
+import {
+  ROLES,
+  RoleId,
+  getSavedRole,
+  applyRoleTheme,
+  hasCompletedOnboarding,
+} from '@/lib/roles';
 
 export default function Home() {
   const [db, setDb] = useState<GaeaDatabase | null>(null);
@@ -26,8 +33,15 @@ export default function Home() {
   const [activeArticleId, setActiveArticleId] = useState<string>('welcome-gaea-forge');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+
+  // Role & Workspace Theme State
+  const [currentRoleId, setCurrentRoleId] = useState<RoleId>(() => getSavedRole());
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => !hasCompletedOnboarding());
+  const activeRoleConfig = ROLES[currentRoleId] || ROLES['author-bible'];
+  const categories = activeRoleConfig.categories;
+
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    () => new Set(LORE_CATEGORIES)
+    () => new Set(categories)
   );
 
   const toggleCategoryExpanded = (cat: string) => {
@@ -131,6 +145,40 @@ export default function Home() {
       if (subscription) subscription.unsubscribe();
     };
   }, []);
+
+  // Apply active role theme when role changes
+  useEffect(() => {
+    applyRoleTheme(currentRoleId);
+  }, [currentRoleId]);
+
+  const handleSelectRole = (newRoleId: RoleId, shouldSeedSample: boolean) => {
+    setCurrentRoleId(newRoleId);
+    applyRoleTheme(newRoleId);
+    const newConfig = ROLES[newRoleId];
+    setExpandedCategories(new Set(newConfig.categories));
+
+    if (shouldSeedSample && newConfig.sampleArticle) {
+      const sample = newConfig.sampleArticle;
+      const timestamp = Date.now();
+      const sampleDoc: LoreArticle = {
+        id: `starter-${newRoleId}-${timestamp}`,
+        title: sample.title,
+        category: sample.category,
+        content: sample.content,
+        tags: sample.tags,
+        properties: sample.properties,
+        isPinned: true,
+        last_updated: timestamp,
+      };
+
+      setArticles((prev) => [sampleDoc, ...prev]);
+      setActiveArticleId(sampleDoc.id);
+
+      if (db) {
+        db.articles.insert(sampleDoc).catch((e) => console.warn('Sample insert notice:', e));
+      }
+    }
+  };
 
   // Save Canvases to LocalStorage
   const saveCanvases = (updatedCanvases: CanvasData[]) => {
@@ -399,19 +447,46 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
-  // Bulk Import Handler
-  const handleImportArticles = async (importedList: LoreArticle[]) => {
-    setArticles(importedList);
-    if (importedList.length > 0) {
-      setActiveArticleId(importedList[0].id);
-    }
-    if (db) {
-      try {
-        await db.articles.bulkInsert(importedList);
-      } catch (e) {
-        console.warn('RxDB bulkInsert notice:', e);
+  // Intelligent Multi-Format Import Handler
+  const handleImportArticles = async (
+    importedList: LoreArticle[],
+    mode: 'merge' | 'replace' = 'merge'
+  ) => {
+    if (mode === 'replace') {
+      setArticles(importedList);
+      if (importedList.length > 0) {
+        setActiveArticleId(importedList[0].id);
+      }
+      if (db) {
+        try {
+          const allDocs = await db.articles.find().exec();
+          await Promise.all(allDocs.map((doc) => doc.remove()));
+          await db.articles.bulkInsert(importedList);
+        } catch (e) {
+          console.warn('RxDB replace notice:', e);
+        }
+      }
+    } else {
+      const importedIds = new Set(importedList.map((a) => a.id));
+      const merged = [
+        ...importedList,
+        ...articles.filter((a) => !importedIds.has(a.id)),
+      ];
+
+      setArticles(merged);
+      if (importedList.length > 0) {
+        setActiveArticleId(importedList[0].id);
+      }
+      if (db) {
+        try {
+          await db.articles.bulkUpsert(importedList);
+        } catch (e) {
+          console.warn('RxDB bulkUpsert notice:', e);
+        }
       }
     }
+    setIsSavedToast(true);
+    setTimeout(() => setIsSavedToast(false), 2500);
   };
 
   // Filter articles based on search, tag
@@ -433,7 +508,16 @@ export default function Home() {
   });
 
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
-  const characterArticles = articles.filter((a) => a.category === 'Characters');
+  const characterArticles = articles.filter(
+    (a) =>
+      /character|cast|npc|people/i.test(a.category) ||
+      a.category === 'Characters'
+  );
+
+  // Dynamic merged categories list (active role categories + any existing custom categories)
+  const displayCategories = Array.from(
+    new Set([...categories, ...articles.map((a) => a.category).filter(Boolean)])
+  );
 
   return (
     <div className="flex h-screen w-full bg-slate-950 text-parchment overflow-hidden select-none font-sans">
@@ -462,10 +546,10 @@ export default function Home() {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setIsExportModalOpen(true)}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition-colors"
-                title="Backup / Restore World Data"
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-gold rounded-lg text-xs transition-colors flex items-center gap-1"
+                title="Intelligent Document Import (.pdf, .docx, .doc, .md, .txt) & Backup"
               >
-                💾 Backup
+                <span>📥</span> <span className="hidden sm:inline">Import</span>
               </button>
               <button
                 onClick={() => setIsSidebarOpen(false)}
@@ -604,14 +688,14 @@ export default function Home() {
             <div>
               <div className="flex items-center justify-between px-2 mb-2">
                 <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
-                  Lore Categories
+                  {activeRoleConfig.terminology.codexTitle}
                 </span>
                 <button
                   onClick={() => {
                     if (expandedCategories.size > 0) {
                       setExpandedCategories(new Set());
                     } else {
-                      setExpandedCategories(new Set(LORE_CATEGORIES));
+                      setExpandedCategories(new Set(displayCategories));
                     }
                   }}
                   className="text-[10px] text-slate-500 hover:text-gold transition-colors"
@@ -621,7 +705,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-3">
-                {LORE_CATEGORIES.map((cat) => {
+                {displayCategories.map((cat) => {
                   const categoryArticles = filteredArticles.filter((a) => a.category === cat);
                   const isExpanded = expandedCategories.has(cat);
 
@@ -691,12 +775,12 @@ export default function Home() {
           <div className="p-3 border-t border-slate-800 bg-slate-950/80">
             <button
               onClick={() => {
-                setNewModalCategory('Characters');
+                setNewModalCategory(displayCategories[0] || 'Characters');
                 setIsNewModalOpen(true);
               }}
               className="w-full py-2 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-400 hover:to-gold text-slate-950 font-bold rounded-lg text-xs shadow-lg shadow-gold/20 flex items-center justify-center gap-1.5 transition-all"
             >
-              <span>+</span> New Lore Article
+              <span>+</span> {activeRoleConfig.terminology.newArticleButton}
             </button>
           </div>
         </div>
@@ -753,6 +837,22 @@ export default function Home() {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Active Role & Theme Switcher Button */}
+            <button
+              onClick={() => setIsOnboardingOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 shrink-0"
+              style={{
+                borderColor: activeRoleConfig.theme.primary,
+                backgroundColor: activeRoleConfig.theme.primaryLight,
+                color: activeRoleConfig.theme.primary,
+              }}
+              title="Switch Workspace Role & Theme"
+            >
+              <span>{activeRoleConfig.icon}</span>
+              <span className="hidden md:inline">{activeRoleConfig.shortName}</span>
+              <span className="text-[10px] opacity-75">▾</span>
+            </button>
+
             {/* Auto-save status */}
             <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5">
               {isSaving ? (
@@ -949,7 +1049,7 @@ export default function Home() {
                     }
                     className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment text-xs focus:outline-none focus:border-gold"
                   >
-                    {LORE_CATEGORIES.map((cat) => (
+                    {Array.from(new Set([...displayCategories, activeArticle.category])).map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
@@ -1114,6 +1214,7 @@ export default function Home() {
         onClose={() => setIsNewModalOpen(false)}
         onCreate={handleCreateArticle}
         defaultCategory={newModalCategory}
+        categories={displayCategories}
       />
 
       <NewCanvasModal
@@ -1122,11 +1223,20 @@ export default function Home() {
         onCreate={handleCreateCanvas}
       />
 
-      <ExportImportModal
+      <DocumentImportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         articles={articles}
-        onImport={handleImportArticles}
+        activeRole={currentRoleId}
+        categories={displayCategories}
+        onImportArticles={handleImportArticles}
+      />
+
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        onSelectRole={handleSelectRole}
+        currentRoleId={currentRoleId}
       />
     </div>
   );

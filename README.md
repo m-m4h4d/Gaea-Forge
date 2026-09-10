@@ -8,6 +8,8 @@ Gaea Forge is a privacy-first, offline-capable digital workbench designed for wr
 
 ## ✨ Features
 
+- 🎭 **Role-Based Theming & Workspace System**: Tailored creative onboarding and themes for **Author's World & Character Bibles**, **Game Designer / Developer Idea Guides (GDD)**, **TTRPG Campaign Masters & Worldbuilders**, and **Personal Knowledge Bases**, with instant dynamic CSS theme switching and custom category hierarchies.
+- 📑 **Intelligent Multi-Format Document Importer**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt`, and `.json` documents. Automatically segments multi-topic documents into discrete articles (characters, nations, bestiary entries, artifacts, magic schools), extracts key-value attributes to the entity inspector, and provides an interactive review table before importing.
 - 📖 **Rich Lore Codex & Editor**: Powered by TipTap WYSIWYG editor with support for custom entity properties (attributes, stats, traits), categories, and quick tag filters.
 - 🌌 **3D Interactive Cosmos Canvas**: Real-time 3D WebGL universe powered by **Three.js** with 360° orbit rotation, category-themed glowing celestial bodies, luminous constellation beams, raycasting HUD, and cinematic galaxy auto-rotation.
 - 🌳 **Family Tree & Dynasty Canvas**: Interactive visual hierarchy editor to map genealogical lineages, mentorships, alliances, and ancestral trees.

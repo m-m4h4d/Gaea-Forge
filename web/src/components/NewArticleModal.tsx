@@ -8,19 +8,30 @@ interface NewArticleModalProps {
   onClose: () => void;
   onCreate: (article: { title: string; category: LoreCategory; tags: string[] }) => void;
   defaultCategory?: LoreCategory;
+  categories?: string[];
 }
 
 export default function NewArticleModal({
   isOpen,
   onClose,
   onCreate,
-  defaultCategory = 'Characters',
+  defaultCategory,
+  categories = [...LORE_CATEGORIES],
 }: NewArticleModalProps) {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<LoreCategory>(defaultCategory);
+  const [selectedCategory, setSelectedCategory] = useState<LoreCategory | null>(null);
   const [tagsInput, setTagsInput] = useState('');
 
   if (!isOpen) return null;
+
+  const currentCategory = selectedCategory ?? defaultCategory ?? categories[0] ?? 'General';
+
+  const handleClose = () => {
+    setTitle('');
+    setSelectedCategory(null);
+    setTagsInput('');
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,11 +44,12 @@ export default function NewArticleModal({
 
     onCreate({
       title: title.trim(),
-      category,
+      category: currentCategory,
       tags,
     });
 
     setTitle('');
+    setSelectedCategory(null);
     setTagsInput('');
     onClose();
   };
@@ -69,11 +81,11 @@ export default function NewArticleModal({
               Category
             </label>
             <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as LoreCategory)}
+              value={currentCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-parchment focus:outline-none focus:border-gold transition-colors"
             >
-              {LORE_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
@@ -97,7 +109,7 @@ export default function NewArticleModal({
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors font-medium text-xs"
             >
               Cancel

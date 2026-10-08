@@ -286,11 +286,12 @@ export const INITIAL_SEED_ARTICLES: LoreArticle[] = [
       <p>Your local-first, open-source world-building platform for fantasy, sci-fi, and tabletop RPG campaign lore.</p>
       <h2>Getting Started</h2>
       <ul>
-        <li><strong>Create Lore:</strong> Click <em>+ New Lore Article</em> in the sidebar to add characters, locations, factions, and artifacts.</li>
-        <li><strong>World Canvases:</strong> Create multi-type canvases in the sidebar! Visualise family trees or explore the <strong>Master World Web</strong> connecting all your universe entities.</li>
-        <li><strong>Rich Formatting:</strong> Use headings, text formatting, lists, blockquotes, and code in the live editor.</li>
-        <li><strong>Entity Inspector:</strong> Tag your entries, define custom key-value properties, and upload entity artwork on the right.</li>
-        <li><strong>Local & Private:</strong> All your world data is stored locally in IndexedDB with zero cloud dependencies. Backup anytime via <em>💾 Backup</em>.</li>
+        <li><strong>Create Lore:</strong> Use the <em>New</em> button at the bottom of the sidebar (or the <em>+</em> beside a category) to add characters, places, factions and artifacts.</li>
+        <li><strong>Link Your World:</strong> Type <code>[[</code> in the editor to link to another article, or create one on the spot. Each article lists everything that mentions it.</li>
+        <li><strong>World Canvases:</strong> Add canvases under <em>World Canvases</em> in the sidebar: a <strong>World Web</strong> of relationships (in 2D or a 3D cosmos), <strong>Family Trees</strong>, <strong>Timelines</strong> with eras, and <strong>Maps</strong> with pins.</li>
+        <li><strong>Entity Inspector:</strong> On the right, set the category, tags, custom key-value properties and artwork, and see where an article appears.</li>
+        <li><strong>Import &amp; Back Up:</strong> The <em>Import</em> button at the top of the sidebar brings in .pdf, .docx, .md and .txt files, and its <em>Backup &amp; Restore</em> tab saves your whole world to a file.</li>
+        <li><strong>Local &amp; Private:</strong> Everything is stored on this device, with no account or cloud. Changes save automatically; download a backup now and then.</li>
       </ul>
     `,
     isPinned: true,

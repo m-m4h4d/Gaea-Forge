@@ -11,6 +11,7 @@ import {
   LoreArticle,
 } from '@/lib/database';
 import { categoryColor } from '@/lib/categoryColors';
+import { disposeObject3D, removeAndDispose } from '@/lib/threeDispose';
 import NodeConnectModal from './NodeConnectModal';
 import { BookOpen, Link2, Map as MapIcon, Orbit, Wand2, X } from 'lucide-react';
 
@@ -102,6 +103,7 @@ export default function WorldWebCanvas3D({
   useEffect(() => {
     const container = mountRef.current;
     if (!container) return;
+    const nodeMeshes = nodeMeshesRef.current;
 
     const width = container.clientWidth;
     const height = container.clientHeight;
@@ -132,7 +134,7 @@ export default function WorldWebCanvas3D({
     controls.dampingFactor = 0.06;
     controls.maxDistance = 1400;
     controls.minDistance = 40;
-    controls.autoRotate = isAutoRotating;
+    // autoRotate itself is set by the effect below, so toggling it never rebuilds the scene
     controls.autoRotateSpeed = 0.6;
     controlsRef.current = controls;
 
@@ -196,10 +198,13 @@ export default function WorldWebCanvas3D({
 
     // 7. Animation Loop
     let animationFrameId: number;
+    let frame = 0;
     const startTime = performance.now();
 
     const animate = (currentTime: number) => {
       animationFrameId = requestAnimationFrame(animate);
+      // Live GPU geometry count, for spotting leaks (read by the e2e tests)
+      if (frame++ % 30 === 0) container.dataset.gpuGeometries = String(renderer.info.memory.geometries);
       const elapsedTime = (currentTime - startTime) * 0.001;
 
       // Smooth camera interpolation if target lookAt is set
@@ -241,12 +246,19 @@ export default function WorldWebCanvas3D({
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       controls.dispose();
+      // Free everything on the GPU (stars, nodes, lines), then the WebGL context
+      // itself: browsers only allow a few live contexts per page
+      disposeObject3D(scene);
+      nodeMeshes.clear();
       renderer.dispose();
+      renderer.forceContextLoss();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      sceneRef.current = null;
+      linesGroupRef.current = null;
     };
-  }, [getNode3DPosition, isAutoRotating]);
+  }, []);
 
   // Update Auto-Rotate in Controls
   useEffect(() => {
@@ -261,15 +273,10 @@ export default function WorldWebCanvas3D({
     const linesGroup = linesGroupRef.current;
     if (!scene || !linesGroup) return;
 
-    // Clear old node meshes
-    nodeMeshesRef.current.forEach((mesh) => scene.remove(mesh));
+    // Clear old node meshes and lines, freeing their GPU memory
+    nodeMeshesRef.current.forEach(removeAndDispose);
     nodeMeshesRef.current.clear();
-
-    // Clear old line meshes
-    while (linesGroup.children.length > 0) {
-      const child = linesGroup.children[0];
-      linesGroup.remove(child);
-    }
+    [...linesGroup.children].forEach(removeAndDispose);
 
     const nodePositionsMap = new Map<string, THREE.Vector3>();
 

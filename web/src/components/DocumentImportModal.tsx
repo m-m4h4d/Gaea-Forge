@@ -8,6 +8,7 @@ import { defaultImportRules, ImportRule, loadImportRules, saveImportRules } from
 import ImportRulesEditor from './ImportRulesEditor';
 import { parseWorldBackup, WorldBackup } from '@/lib/backup';
 import { FileUp, HardDriveDownload, Inbox, SlidersHorizontal, Sparkles, TriangleAlert, X } from 'lucide-react';
+import Modal from './dialogs/Modal';
 
 interface DocumentImportModalProps {
   isOpen: boolean;
@@ -229,12 +230,16 @@ export default function DocumentImportModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-slate-100 relative">
+    <Modal
+      onClose={onClose}
+      labelledBy="import-modal-title"
+      overlayClassName="bg-black/85 backdrop-blur-sm p-3 sm:p-6 animate-in fade-in duration-150"
+      className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden text-slate-100 relative"
+    >
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-gold tracking-wide flex items-center gap-2">
+            <h2 id="import-modal-title" className="text-xl font-bold text-gold tracking-wide flex items-center gap-2">
               <Inbox size={20} aria-hidden /> Import & Export World Data
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -685,7 +690,6 @@ export default function DocumentImportModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

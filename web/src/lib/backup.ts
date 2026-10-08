@@ -142,16 +142,8 @@ export function parseWorldBackup(value: unknown): WorldBackup | null {
   };
 }
 
-export function downloadBackup(backup: WorldBackup) {
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `gaea-forge-backup-${new Date(backup.exportedAt).toISOString().slice(0, 10)}.json`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+export function backupFileName(backup: WorldBackup): string {
+  return `gaea-forge-backup-${new Date(backup.exportedAt).toISOString().slice(0, 10)}.json`;
 }
 
 // Drop canvas nodes (and map pins) whose linked article no longer exists, with any

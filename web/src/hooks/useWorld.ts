@@ -15,7 +15,7 @@ import {
   WorldBackup,
   createBackup,
   createSnapshot,
-  downloadBackup,
+  backupFileName,
   listSnapshots,
   pruneCanvasesToArticles,
   restoreArticleLinks,
@@ -26,6 +26,7 @@ import {
 import { RoleId } from '@/lib/roles';
 import { externalizeImages, storeImage as storeImageAsset } from '@/lib/assets';
 import { MAX_COVER_DIMENSION, readImageFile } from '@/lib/images';
+import { saveJsonFile } from '@/lib/saveFile';
 import { useArticleSaver } from './useArticleSaver';
 import { useCanvasSaver } from './useCanvasSaver';
 import { Notify } from './useNotice';
@@ -217,10 +218,13 @@ export function useWorld(notify: Notify) {
     await canvasSaver.settle();
     try {
       const world = db ? await readWorld(db) : { articles, canvases };
-      downloadBackup(createBackup(world.articles, world.canvases, roleId));
+      const backup = createBackup(world.articles, world.canvases, roleId);
+      const result = await saveJsonFile(backupFileName(backup), JSON.stringify(backup, null, 2));
+      if (result.status === 'saved') notify('success', `Backup saved to ${result.path}`);
     } catch (e) {
       console.error('Backup export failed:', e);
-      notify('error', 'Could not export the backup.');
+      // Desktop write errors arrive as a message from Rust (e.g. permission denied)
+      notify('error', typeof e === 'string' ? e : 'Could not export the backup.');
     }
   };
 

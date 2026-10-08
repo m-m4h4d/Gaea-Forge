@@ -119,13 +119,105 @@ export const loreArticleSchema = {
   required: ['id', 'title', 'category', 'content', 'tags', 'properties', 'last_updated']
 } as const;
 
+export const canvasSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
+      maxLength: 100
+    },
+    title: {
+      type: 'string'
+    },
+    type: {
+      type: 'string'
+    },
+    nodes: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    connections: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    last_updated: {
+      type: 'number'
+    }
+  },
+  required: ['id', 'title', 'type', 'nodes', 'connections', 'last_updated']
+} as const;
+
+// A full copy of the world taken automatically before destructive operations
+// (replace import, backup restore), so they can be undone.
+export type WorldSnapshot = {
+  id: string;
+  createdAt: number;
+  reason: string;
+  articleCount: number;
+  canvasCount: number;
+  data: string; // Serialized WorldBackup
+};
+
+export const snapshotSchema = {
+  version: 0,
+  primaryKey: 'id',
+  type: 'object',
+  properties: {
+    id: {
+      type: 'string',
+      maxLength: 100
+    },
+    createdAt: {
+      type: 'number'
+    },
+    reason: {
+      type: 'string'
+    },
+    articleCount: {
+      type: 'number'
+    },
+    canvasCount: {
+      type: 'number'
+    },
+    data: {
+      type: 'string'
+    }
+  },
+  required: ['id', 'createdAt', 'reason', 'articleCount', 'canvasCount', 'data']
+} as const;
+
 export type LoreArticleCollection = RxCollection<LoreArticle>;
+export type CanvasCollection = RxCollection<CanvasData>;
+export type SnapshotCollection = RxCollection<WorldSnapshot>;
 export type GaeaDatabaseCollections = {
   articles: LoreArticleCollection;
+  canvases: CanvasCollection;
+  snapshots: SnapshotCollection;
 };
 export type GaeaDatabase = RxDatabase<GaeaDatabaseCollections>;
 
 let dbPromise: Promise<GaeaDatabase> | null = null;
+
+// Canvases were stored in localStorage before they moved into RxDB.
+const LEGACY_CANVAS_STORAGE_KEY = 'gaea_canvases_v3';
+
+function loadLegacyCanvases(): CanvasData[] | null {
+  try {
+    const raw = localStorage.getItem(LEGACY_CANVAS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed as CanvasData[];
+  } catch {
+    return null;
+  }
+}
 
 export const INITIAL_SEED_ARTICLES: LoreArticle[] = [
   {
@@ -201,12 +293,28 @@ export const getDatabase = async (): Promise<GaeaDatabase> => {
           articles: {
             schema: loreArticleSchema,
           },
+          canvases: {
+            schema: canvasSchema,
+          },
+          snapshots: {
+            schema: snapshotSchema,
+          },
         });
 
         // Seed if empty
         const count = await db.articles.count().exec();
         if (count === 0) {
           await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
+        }
+
+        const canvasCount = await db.canvases.count().exec();
+        if (canvasCount === 0) {
+          await db.canvases.bulkInsert(loadLegacyCanvases() ?? INITIAL_SEED_CANVASES);
+          try {
+            localStorage.removeItem(LEGACY_CANVAS_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
         }
 
         return db;

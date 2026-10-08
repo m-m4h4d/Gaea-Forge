@@ -1,96 +1,65 @@
-# ⚙️ Claude Setup & Directives
+# Gaea Forge
 
-## Project Name
+Gaea Forge is a local-first world-building and lore app for writers, game designers and tabletop game masters. Users write lore articles (characters, places, factions, items), attach tags and key-value properties, and connect articles on canvases (a 2D/3D "world web" and family trees). All data stays on the user's device in IndexedDB. There is no server.
 
-Gaea Forge
+The app is a Next.js static export (`output: 'export'`) that runs in the browser or inside a Tauri v2 desktop shell (`../src-tauri`). Everything is client-side.
 
-## Project Overview
+## Commands
 
-"Gaea Forge" is a professional-grade SaaS platform dedicated to digital landscape and architectural design. It functions as a collaborative digital workbench where 3D models, textures, GIS data, and biome data converge to create immersive, realistic virtual environments.
+Run from the repo root (npm workspaces) or from `web/`:
 
-The platform emphasizes:
+| Task | Command |
+| :--- | :--- |
+| Dev server (browser) | `npm run dev` |
+| Desktop app (dev) | `npm run tauri dev` (root only) |
+| Lint | `npm run lint` |
+| Type-check | `npm run typecheck` |
+| Unit tests (Vitest) | `npm test` |
+| Static build to `web/out` | `npm run build` |
+| End-to-end tests (Playwright) | `npm run test:e2e` (needs `npm run build` first) |
 
-- **Precision Engineering**: Accuracy in cartography, biome simulation, and material science.
-- **Scalable Infrastructure**: Handling large datasets (GIS, BIM) and high-fidelity rendering.
-- **Creative Flexibility**: Allowing users to sculpt terrain, customize biomes, and generate detailed architectural assets.
+CI (`.github/workflows/ci.yml`) runs all of these on every pull request.
 
-## Core Modules
+## Layout
 
-### 1. GIS Engine & Terrain Module
+```
+web/src/
+  app/page.tsx            Composition root: selection, view mode, modals, confirm dialogs
+  hooks/
+    useWorld.ts           Database, articles, canvases, backup/import/restore operations
+    useArticleSaver.ts    Debounced article writes + unload recovery journal
+    useNotice.ts          Transient success/error toast
+  components/             UI (Sidebar, AppHeader, EntityInspector, Editor, canvases, modals)
+  lib/
+    database.ts           RxDB setup, schemas, types, seed data
+    backup.ts             Backup format, parsing, snapshots, canvas pruning
+    articles.ts           Pure article helpers (search, categories, factories)
+    documentParser.ts     .pdf/.docx/.doc/.md/.txt/.json import and segmentation
+    familyTreeLayout.ts   Family tree auto-arrange
+    roles.ts              Workspace roles: categories, wording, theme colors
+web/e2e/                  Playwright tests against the static export
+```
 
-- **Function**: Processes high-resolution cartographic data to generate base topography and georeferenced terrain.
-- **Key Features**: DEM/DTM import, fault-line generation, river simulation, and climate modeling.
+Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything that can be a pure function in `lib/` with a unit test next to it (`*.test.ts`).
 
-### 2. Biome Layering System
+## Data model and persistence
 
-- **Function**: Defines environmental rules for vegetation, hydrology, and material distribution.
-- **Key Features**: Procedural biomes (temperate, arid, tundra), erosion simulation, and ecological zone mapping.
+- RxDB with the Dexie (IndexedDB) storage, database `gaeafdb_v6`, collections `articles`, `canvases` and `snapshots` (`lib/database.ts`).
+- **Never lose user data.** This is the main rule of the codebase:
+  - Changing a schema means bumping its `version` and adding a `migrationStrategies` entry. Do not rename the database to start fresh.
+  - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which saves a snapshot first.
+  - RxDB bulk calls (`bulkInsert`, `bulkUpsert`, `bulkRemove`) report failures in their return value instead of throwing. Use the helpers in `lib/backup.ts`, which check it.
+  - Report failures to the user with `notify`/`showNotice`, not only `console`.
+- Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
+- `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
+- Deleting an article must also remove its canvas nodes and their connections (`pruneCanvasesToArticles`).
+- The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 
-### 3. Asset Foundry
+## Conventions
 
-- **Function**: A repository of 3D models, materials, and textures for populating scenes.
-- **Key Features**: PBR material library, procedural texture generation, and asset fusion engine.
-
-### 4. Interactive Workspace
-
-- **Function**: The primary creative interface where users sculpt, paint, and compose environments.
-- **Key Features**: Brush-based editing, layer management, and real-time preview rendering.
-
-### 5. Backend & GIS Orchestration
-
-- **Function**: Manages data pipelines, spatial queries, and simulation state.
-- **Key Features**: GeoServer integration, PostgreSQL/PostGIS, Celery task queue, and file management.
-
-## Development Style & Guidelines
-
-Claude must strictly adhere to the following development principles:
-
-### 1. Clean Architecture (Hexagonal/Onion)
-
-- **Isolation**: Separate concerns between the core engine, business logic, and external services.
-- **Dependency Rules**: Dependencies flow inward from infrastructure to the core domain.
-
-### 2. API-First Design
-
-- **API Contracts**: All services must be exposed via clear, versioned REST or GraphQL APIs.
-- **Idempotency**: Critical operations (e.g., terrain modification, asset placement) must be idempotent.
-
-### 3. GIS Purity
-
-- **Coordinate Systems**: All geographic data must maintain proper CRS (Coordinate Reference System) context.
-- **Data Integrity**: "No data loss" principle. Vector and raster data must be preserved or losslessly converted.
-
-### 4. Asset Pipeline Excellence
-
-- **Material Science**: Materials must be PBR-compliant (Albedo, Roughness, Metallic, Normal).
-- **Procedural Consistency**: Procedural generation should be deterministic and editable.
-
-## Directives for Claude
-
-### 1. Project Orientation
-
-- **Perspective**: The codebase reflects a blend of high-performance gaming engines (for the workspace) and robust enterprise infrastructure (for GIS data handling).
-- **Tone**: Professional, precise, engineering-focused.
-
-### 2. Code Quality Standards
-
-- **DRY**: Avoid code duplication, especially in geometric or shader logic.
-- **Type Safety**: Strict type checking is mandatory. Avoid `any` types.
-- **Error Handling**: Graceful degradation during simulation. Provide actionable error messages for GIS data issues.
-
-### 3. Design & Implementation Guidelines
-
-- **Modularity**: Components should be highly modular and independently testable.
-- **Extensibility**: The architecture must allow for the easy addition of new biome types, rendering shaders, or asset libraries.
-
-### 4. Data Handling
-
-- **Spatial Indexing**: When implementing search or query features, use spatial indexing (e.g., R-trees).
-- **Version Control**: Maintain strict versioning for large dataset schemas.
-
-### 5. Documentation
-
-- **Docstrings**: Every public interface must be documented.
-- **Flow Diagrams**: For complex operations like biome generation or terrain sculpting, create visual flow diagrams.
+- TypeScript strict mode; avoid `any`.
+- Match the surrounding style: Tailwind utility classes, the `gold`/`parchment` theme tokens from `globals.css`, short comments that explain why.
+- Next.js 16 has breaking changes from older versions; see `AGENTS.md`.
+- New behavior needs a test: a Vitest unit test for logic in `lib/`, and a Playwright test in `e2e/` for user-visible flows that touch persistence.
 
 @AGENTS.md

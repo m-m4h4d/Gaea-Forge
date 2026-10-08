@@ -10,7 +10,9 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = ['href', 'start', 'class'];
 
-const SAFE_URI = /^(?:https?:|mailto:|#)/i;
+// DOMPurify's default pattern narrowed to http(s)/mailto. It is also applied to non-URI attribute
+// values, so scheme-less values (e.g. `start="3"`, relative links) must still pass.
+const SAFE_URI = /^(?:(?:https?|mailto):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
 /**
  * Sanitizes untrusted HTML down to the TipTap StarterKit subset.

@@ -5,6 +5,9 @@ export type RoleId = 'author-bible' | 'game-dev' | 'ttrpg-dm' | 'personal-notes'
 export interface RoleTheme {
   primary: string; // Hex for accent (e.g. gold, cyan, emerald, azure)
   primaryHover: string;
+  // Darker accent used in light mode, readable on light backgrounds with white text
+  primaryStrong: string;
+  primaryStrongHover: string;
   primaryLight: string;
   bgDark: string; // Main background
   surfaceDark: string; // Sidebar/header
@@ -54,6 +57,8 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     theme: {
       primary: '#fbbf24', // Amber/Gold
       primaryHover: '#f59e0b',
+      primaryStrong: '#b45309',
+      primaryStrongHover: '#92400e',
       primaryLight: 'rgba(251, 191, 36, 0.15)',
       bgDark: '#0b0f19',
       surfaceDark: '#0f172a',
@@ -74,7 +79,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     terminology: {
       entityNoun: 'Lore Entity',
       workspaceTitle: "Author's World Bible",
-      newArticleButton: '+ New Lore Entity',
+      newArticleButton: 'New Lore Entity',
       codexTitle: 'World Lore Codex',
       canvasWebTitle: 'Master World Web',
       canvasTreeTitle: 'Character Lineage Tree',
@@ -114,6 +119,8 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     theme: {
       primary: '#06b6d4', // Electric Cyan
       primaryHover: '#0891b2',
+      primaryStrong: '#0e7490',
+      primaryStrongHover: '#155e75',
       primaryLight: 'rgba(6, 182, 212, 0.15)',
       bgDark: '#080c14',
       surfaceDark: '#0d131f',
@@ -134,7 +141,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     terminology: {
       entityNoun: 'Design Element',
       workspaceTitle: 'Game Design Document (GDD)',
-      newArticleButton: '+ New Game Element',
+      newArticleButton: 'New Game Element',
       codexTitle: 'Game Systems Codex',
       canvasWebTitle: 'System Interaction Graph',
       canvasTreeTitle: 'Progression & Quest Tree',
@@ -173,6 +180,8 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     theme: {
       primary: '#10b981', // Radiant Emerald
       primaryHover: '#059669',
+      primaryStrong: '#047857',
+      primaryStrongHover: '#065f46',
       primaryLight: 'rgba(16, 185, 129, 0.15)',
       bgDark: '#07120e',
       surfaceDark: '#0c1d17',
@@ -193,7 +202,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     terminology: {
       entityNoun: 'Campaign Record',
       workspaceTitle: 'DM Campaign Codex',
-      newArticleButton: '+ New Campaign Record',
+      newArticleButton: 'New Campaign Record',
       codexTitle: 'Campaign Codex',
       canvasWebTitle: 'Faction & NPC Intrigue Web',
       canvasTreeTitle: 'Lineage & Loyalty Tree',
@@ -232,6 +241,8 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     theme: {
       primary: '#3b82f6', // Sleek Azure Blue
       primaryHover: '#2563eb',
+      primaryStrong: '#1d4ed8',
+      primaryStrongHover: '#1e40af',
       primaryLight: 'rgba(59, 130, 246, 0.15)',
       bgDark: '#080c16',
       surfaceDark: '#0f172a',
@@ -252,7 +263,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     terminology: {
       entityNoun: 'Note',
       workspaceTitle: 'Personal Knowledge Base',
-      newArticleButton: '+ New Note',
+      newArticleButton: 'New Note',
       codexTitle: 'Personal Notes Codex',
       canvasWebTitle: 'Concept Mind Web',
       canvasTreeTitle: 'Topic Hierarchy Tree',
@@ -289,24 +300,25 @@ export function applyRoleTheme(roleId: RoleId) {
   const role = ROLES[roleId] || ROLES[DEFAULT_ROLE_ID];
   const root = document.documentElement;
 
-  root.style.setProperty('--theme-accent', role.theme.primary);
-  root.style.setProperty('--theme-accent-hover', role.theme.primaryHover);
-  root.style.setProperty('--theme-accent-light', role.theme.primaryLight);
-  root.style.setProperty('--theme-accent-glow', role.theme.accentGlow);
-  root.style.setProperty('--theme-bg', role.theme.bgDark);
-  root.style.setProperty('--theme-surface', role.theme.surfaceDark);
-  root.style.setProperty('--theme-card', role.theme.cardDark);
-  root.style.setProperty('--theme-border', role.theme.border);
-  root.style.setProperty('--theme-text', role.theme.textMain);
-  root.style.setProperty('--theme-text-muted', role.theme.textMuted);
-
-  // Also update standard tailwind color vars
-  root.style.setProperty('--gold', role.theme.primary);
-  root.style.setProperty('--color-gold', role.theme.primary);
-  root.style.setProperty('--color-gold-hover', role.theme.primaryHover);
+  const vars: Record<string, string> = {
+    '--role-accent': role.theme.primary,
+    '--role-accent-hover': role.theme.primaryHover,
+    '--role-accent-strong': role.theme.primaryStrong,
+    '--role-accent-strong-hover': role.theme.primaryStrongHover,
+    '--role-bg': role.theme.bgDark,
+    '--role-surface': role.theme.surfaceDark,
+    '--role-card': role.theme.cardDark,
+    '--role-border': role.theme.border,
+    '--role-text': role.theme.textMain,
+  };
+  for (const [name, value] of Object.entries(vars)) {
+    root.style.setProperty(name, value);
+  }
 
   try {
     localStorage.setItem('gaea_user_role', roleId);
+    // Read by public/theme-init.js to apply the role's colors before first paint
+    localStorage.setItem('gaea_role_vars', JSON.stringify(vars));
   } catch {
     // ignore
   }

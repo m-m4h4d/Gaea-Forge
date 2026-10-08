@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { ROLES, RoleId, RoleConfig, applyRoleTheme, setOnboardingCompleted } from '@/lib/roles';
+import { Check, Globe, Rocket } from 'lucide-react';
+import RoleIcon from './RoleIcon';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -39,7 +41,7 @@ export default function OnboardingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-[#0b0f19] border border-slate-700/80 rounded-3xl shadow-2xl shadow-black/80 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-100 relative">
+      <div className="bg-background border border-slate-700/80 rounded-3xl shadow-2xl shadow-black/80 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-100 relative">
         {/* Subtle decorative radial gradients */}
         <div
           className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none transition-colors duration-500"
@@ -54,12 +56,12 @@ export default function OnboardingModal({
         <div className="p-6 sm:p-8 border-b border-slate-800/80 shrink-0 bg-slate-950/40 relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">🌍</span>
+              <Globe size={18} className="text-gold" aria-hidden />
               <span className="text-xs uppercase font-bold tracking-widest text-slate-400">
                 Welcome to Gaea-Forge
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-50 tracking-tight">
               Choose Your Creative Workspace
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
@@ -74,10 +76,11 @@ export default function OnboardingModal({
               style={{
                 borderColor: activeRoleConfig.theme.primary,
                 backgroundColor: activeRoleConfig.theme.primaryLight,
-                color: activeRoleConfig.theme.primary,
+                // Mixed toward the text color so the accent stays readable in light mode
+                color: `color-mix(in oklab, ${activeRoleConfig.theme.primary}, var(--text) 35%)`,
               }}
             >
-              <span>{activeRoleConfig.icon}</span>
+              <RoleIcon roleId={activeRoleConfig.id} size={16} />
               <span>{activeRoleConfig.badge}</span>
             </span>
           </div>
@@ -105,10 +108,10 @@ export default function OnboardingModal({
                   {/* Selected check pill */}
                   {isSelected && (
                     <div
-                      className="absolute top-4 right-4 w-6 h-6 rounded-full flex items-center justify-center text-slate-950 font-bold text-xs shadow-md"
+                      className="absolute top-4 right-4 w-6 h-6 rounded-full flex items-center justify-center text-[#0b0f19] font-bold text-xs shadow-md"
                       style={{ backgroundColor: role.theme.primary }}
                     >
-                      ✓
+                      <Check size={14} strokeWidth={3} aria-hidden />
                     </div>
                   )}
 
@@ -119,13 +122,13 @@ export default function OnboardingModal({
                         className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-inner border border-white/10"
                         style={{ backgroundColor: role.theme.primaryLight }}
                       >
-                        {role.icon}
+                        <RoleIcon roleId={role.id} size={22} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-white group-hover:text-slate-100">
+                        <h3 className="font-bold text-sm text-slate-50 group-hover:text-slate-100">
                           {role.title}
                         </h3>
-                        <span className="text-[11px] text-slate-400 font-mono">
+                        <span className="text-xs text-slate-400 font-mono">
                           {role.badge}
                         </span>
                       </div>
@@ -138,20 +141,20 @@ export default function OnboardingModal({
 
                     {/* Category preview chips */}
                     <div className="space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                      <span className="text-[11px] uppercase font-bold tracking-wider text-slate-500">
                         Default Categories:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {role.categories.slice(0, 4).map((cat) => (
                           <span
                             key={cat}
-                            className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60"
+                            className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60"
                           >
                             {cat}
                           </span>
                         ))}
                         {role.categories.length > 4 && (
-                          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-medium text-slate-400">
+                          <span className="px-1.5 py-0.5 rounded-md text-[11px] font-medium text-slate-400">
                             +{role.categories.length - 4} more
                           </span>
                         )}
@@ -160,7 +163,7 @@ export default function OnboardingModal({
                   </div>
 
                   {/* Theme Accent Footer bar */}
-                  <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-[11px]">
+                  <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs">
                     <span className="text-slate-400 flex items-center gap-1.5">
                       <span>Palette:</span>
                       <span
@@ -170,7 +173,11 @@ export default function OnboardingModal({
                     </span>
                     <span
                       className="font-semibold transition-colors"
-                      style={{ color: isSelected ? role.theme.primary : '#94a3b8' }}
+                      style={{
+                        color: isSelected
+                          ? `color-mix(in oklab, ${role.theme.primary}, var(--text) 35%)`
+                          : 'var(--n-400)',
+                      }}
                     >
                       {isSelected ? 'Selected Workspace' : 'Click to select'}
                     </span>
@@ -194,7 +201,7 @@ export default function OnboardingModal({
                 <strong>Include tailored starter guide & sample article</strong> for {activeRoleConfig.shortName}
               </label>
             </div>
-            <span className="text-[11px] text-slate-500 hidden sm:inline">
+            <span className="text-xs text-slate-500 hidden sm:inline">
               Switch anytime in Settings
             </span>
           </div>
@@ -209,19 +216,19 @@ export default function OnboardingModal({
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 transition-colors"
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-50 bg-slate-800/60 hover:bg-slate-800 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirm}
-              className="px-6 py-2.5 rounded-xl text-xs font-bold text-slate-950 shadow-xl transition-all flex items-center gap-2 hover:opacity-95"
+              className="px-6 py-2.5 rounded-xl text-xs font-bold text-[#0b0f19] shadow-xl transition-all flex items-center gap-2 hover:opacity-95"
               style={{
                 backgroundColor: activeRoleConfig.theme.primary,
                 boxShadow: `0 0 20px ${activeRoleConfig.theme.accentGlow}`,
               }}
             >
-              <span>🚀 Launch {activeRoleConfig.shortName}</span>
+              <Rocket size={14} aria-hidden /><span>Launch {activeRoleConfig.shortName}</span>
             </button>
           </div>
         </div>

@@ -117,7 +117,7 @@ export default function NewArticleModal({
             <button
               type="submit"
               disabled={!title.trim()}
-              className="px-5 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-semibold rounded-lg shadow-lg shadow-gold/20 disabled:opacity-40 transition-colors text-xs"
+              className="px-5 py-2 bg-gold hover:bg-gold-hover text-on-accent font-semibold rounded-lg shadow-lg shadow-gold/20 disabled:opacity-40 transition-colors text-xs"
             >
               Create Article
             </button>

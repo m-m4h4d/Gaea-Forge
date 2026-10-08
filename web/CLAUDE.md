@@ -29,6 +29,8 @@ web/src/
     useWorld.ts           Database, articles, canvases, backup/import/restore operations
     useArticleSaver.ts    Debounced article writes + unload recovery journal
     useNotice.ts          Transient success/error toast
+    useColorMode.ts       Light/dark/system color mode
+    useStoredValue.ts     localStorage values read without hydration mismatches
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, canvases, modals)
     editor/               TipTap extensions: loreLink ([[ links between articles) + picker
   lib/
@@ -39,6 +41,8 @@ web/src/
     familyTreeLayout.ts   Family tree auto-arrange
     links.ts              Article links: extraction, backlinks, [[Title]] resolution
     roles.ts              Workspace roles: categories, wording, theme colors
+    colorMode.ts          Color mode types and resolution
+    categoryColors.ts     Category -> color (keyword based, works for every role)
 web/e2e/                  Playwright tests against the static export
 ```
 
@@ -57,6 +61,17 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Deleting an article must also remove its canvas nodes and their connections (`pruneCanvasesToArticles`).
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
+
+## Theming
+
+- `<html data-theme="dark|light">` selects the color mode; `public/theme-init.js` sets it (and the role's colors) before first paint. `applyRoleTheme()` sets the `--role-*` variables.
+- `globals.css` remaps Tailwind's **slate scale as the neutral scale** for both modes (inverted in light mode), plus the status colors (red, amber, emerald, purple, blue). So use `slate-*`, `gold` (accent), `on-accent` (text on accent fills), `background` and `parchment`. Do not hard-code hex colors, `text-white` or `text-slate-950` on accent fills; they break in light mode.
+- SVG colors go through classes (`fill-gold`, `stroke-gold`, `fill-slate-900`) or `style={{ stroke: 'var(--accent)' }}`; presentation attributes do not resolve CSS variables.
+- Solid `bg-gold` is for primary actions only. Active and selected states use tints (`bg-gold/15 text-gold`).
+- Secondary text must meet WCAG AA (4.5:1) in both modes: `slate-500` and stronger are fine; `slate-600` is for icons and decoration only.
+- Icons come from `lucide-react` (pinned); don't use emoji for UI chrome.
+- The 3D cosmos is always dark (`data-theme="dark"` on its root).
+- Values saved in localStorage that affect rendering must be read with `useStoredValue`, not in `useState` initializers, or hydration of the static export will mismatch.
 
 ## Conventions
 

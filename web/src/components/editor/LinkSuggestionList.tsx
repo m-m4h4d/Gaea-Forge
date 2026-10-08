@@ -66,13 +66,13 @@ const LinkSuggestionList = forwardRef<LinkSuggestionListHandle, Props>(function 
             onClick={() => command(item)}
             onMouseEnter={() => setSelected(idx)}
             className={`w-full text-left px-3 py-1.5 rounded-lg flex items-center justify-between gap-2 ${
-              idx === selected ? 'bg-gold text-slate-950' : 'hover:bg-slate-800'
+              idx === selected ? 'bg-gold text-on-accent' : 'hover:bg-slate-800'
             }`}
           >
             {item.kind === 'article' ? (
               <>
                 <span className="truncate font-medium">{item.title}</span>
-                <span className={`shrink-0 text-[10px] ${idx === selected ? 'text-slate-800' : 'text-slate-500'}`}>
+                <span className={`shrink-0 text-[11px] ${idx === selected ? 'text-on-accent/75' : 'text-slate-500'}`}>
                   {item.category}
                 </span>
               </>

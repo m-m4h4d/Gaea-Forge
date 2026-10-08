@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { EntityProperty, LoreArticle, LoreCategory } from '@/lib/database';
+import { ChevronRight, ImagePlus, PanelRight, X } from 'lucide-react';
 
 interface EntityInspectorProps {
   isOpen: boolean;
@@ -137,7 +138,7 @@ export default function EntityInspector({
         <div className="w-80 flex flex-col h-full shrink-0">
           <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
             <h2 className="font-bold text-gold tracking-wide text-sm flex items-center gap-1.5">
-              <span>⚜</span> Entity Inspector
+              <PanelRight size={15} aria-hidden /> Entity Inspector
             </h2>
             <div className="flex items-center gap-2">
               {article && (
@@ -154,7 +155,7 @@ export default function EntityInspector({
                 className="p-1 text-slate-400 hover:text-gold hover:bg-slate-800 rounded transition-colors text-xs font-bold"
                 title="Close Inspector"
               >
-                ▶
+                <ChevronRight size={14} aria-hidden />
               </button>
             </div>
           </div>
@@ -163,7 +164,7 @@ export default function EntityInspector({
             <div className="flex-1 overflow-y-auto p-4 space-y-6 text-xs custom-scrollbar">
               {/* Cover Image Header */}
             <div>
-              <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
+              <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider mb-2">
                 Entity Artwork / Map
               </h3>
               <label className="aspect-video w-full bg-slate-950 rounded-xl flex flex-col items-center justify-center border border-slate-800 hover:border-gold cursor-pointer transition-all group relative overflow-hidden shadow-inner">
@@ -176,7 +177,7 @@ export default function EntityInspector({
                   />
                 ) : (
                   <div className="text-center p-3">
-                    <span className="text-2xl block mb-1">🖼️</span>
+                    <ImagePlus size={26} className="block mx-auto mb-1.5 text-slate-500 group-hover:text-gold transition-colors" aria-hidden />
                     <span className="text-slate-500 group-hover:text-gold text-xs transition-colors font-medium">
                       Upload Artwork
                     </span>
@@ -194,7 +195,7 @@ export default function EntityInspector({
             {/* Entity Title & Category Fields */}
             <div className="space-y-3 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                <label className="block text-[11px] uppercase font-bold text-slate-500 mb-1">
                   Title
                 </label>
                 <input
@@ -211,7 +212,7 @@ export default function EntityInspector({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">
+                <label className="block text-[11px] uppercase font-bold text-slate-500 mb-1">
                   Category
                 </label>
                 <select
@@ -236,12 +237,12 @@ export default function EntityInspector({
             {/* Tags Manager */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider">
                   Tags ({article.tags.length})
                 </h3>
                 <button
                   onClick={() => setShowAddTagInput(!showAddTagInput)}
-                  className="text-gold hover:underline text-[10px] font-semibold"
+                  className="text-gold hover:underline text-[11px] font-semibold"
                 >
                   + Add Tag
                 </button>
@@ -257,9 +258,9 @@ export default function EntityInspector({
                     <span onClick={() => onTagClick(tag)}>#{tag}</span>
                     <button
                       onClick={() => handleRemoveTag(tag)}
-                      className="text-slate-500 hover:text-red-400 font-bold ml-0.5 text-[10px]"
+                      className="text-slate-500 hover:text-red-400 font-bold ml-0.5 text-[11px]"
                     >
-                      ✕
+                      <X size={11} aria-hidden />
                     </button>
                   </span>
                 ))}
@@ -279,7 +280,7 @@ export default function EntityInspector({
                   />
                   <button
                     onClick={handleAddTag}
-                    className="px-2.5 py-1 bg-gold text-slate-950 font-bold rounded text-xs hover:bg-gold-hover"
+                    className="px-2.5 py-1 bg-gold text-on-accent font-bold rounded text-xs hover:bg-gold-hover"
                   >
                     Add
                   </button>
@@ -290,12 +291,12 @@ export default function EntityInspector({
             {/* Key-Value Properties Manager */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider">
+                <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider">
                   Custom Properties ({article.properties.length})
                 </h3>
                 <button
                   onClick={() => setShowAddPropInput(!showAddPropInput)}
-                  className="text-gold hover:underline text-[10px] font-semibold"
+                  className="text-gold hover:underline text-[11px] font-semibold"
                 >
                   + Add Property
                 </button>
@@ -318,10 +319,10 @@ export default function EntityInspector({
                     />
                     <button
                       onClick={() => handleDeleteProperty(idx)}
-                      className="text-slate-600 hover:text-red-400 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                      className="text-slate-600 hover:text-red-400 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity ml-1"
                       title="Remove property"
                     >
-                      ✕
+                      <X size={11} aria-hidden />
                     </button>
                   </div>
                 ))}
@@ -348,13 +349,13 @@ export default function EntityInspector({
                   <div className="flex justify-end gap-2 pt-1">
                     <button
                       onClick={() => setShowAddPropInput(false)}
-                      className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[10px] rounded"
+                      className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[11px] rounded"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleAddProperty}
-                      className="px-2.5 py-0.5 bg-gold text-slate-950 font-bold text-[10px] rounded hover:bg-gold-hover"
+                      className="px-2.5 py-0.5 bg-gold text-on-accent font-bold text-[11px] rounded hover:bg-gold-hover"
                     >
                       Save Property
                     </button>
@@ -365,11 +366,11 @@ export default function EntityInspector({
 
             {/* Links between articles */}
             <div>
-              <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
+              <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider mb-2">
                 Mentioned In ({backlinks.length})
               </h3>
               {backlinks.length === 0 ? (
-                <p className="text-[11px] text-slate-600 italic">
+                <p className="text-xs text-slate-500 italic">
                   No articles link here yet. Type <span className="font-mono not-italic">[[</span> in another article to link to this one.
                 </p>
               ) : (
@@ -381,7 +382,7 @@ export default function EntityInspector({
                         className="w-full text-left px-2 py-1 rounded-lg bg-slate-950/50 border border-slate-800 hover:border-gold hover:text-gold text-parchment-muted flex items-center justify-between gap-2 transition-colors"
                       >
                         <span className="truncate">{source.title}</span>
-                        <span className="text-[10px] text-slate-500 shrink-0">{source.category}</span>
+                        <span className="text-[11px] text-slate-500 shrink-0">{source.category}</span>
                       </button>
                     </li>
                   ))}
@@ -390,7 +391,7 @@ export default function EntityInspector({
 
               {outgoingLinks.length > 0 && (
                 <>
-                  <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mt-4 mb-2">
+                  <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider mt-4 mb-2">
                     Links To ({outgoingLinks.length})
                   </h3>
                   <div className="flex flex-wrap gap-1.5">
@@ -419,7 +420,7 @@ export default function EntityInspector({
             </div>
 
             {/* Last Modified Info */}
-            <div className="pt-4 border-t border-slate-800/80 text-[10px] text-slate-500 space-y-1">
+            <div className="pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-1">
               <div>
                 ID: <span className="font-mono text-slate-400">{article.id}</span>
               </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { CanvasType } from '@/lib/database';
+import { GitFork, Network, Palette } from 'lucide-react';
 
 interface NewCanvasModalProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export default function NewCanvasModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 select-none">
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
         <h2 className="text-xl font-bold text-gold tracking-wide mb-1 flex items-center gap-2">
-          <span>🎨</span> Create New World Canvas
+          <Palette size={18} aria-hidden /> Create New World Canvas
         </h2>
         <p className="text-xs text-slate-400 mb-6">
           Add an interactive canvas to map your universe lore or character lineage.
@@ -44,7 +45,7 @@ export default function NewCanvasModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1 tracking-wider">
+            <label className="block text-[11px] uppercase font-bold text-slate-400 mb-1 tracking-wider">
               Canvas Title *
             </label>
             <input
@@ -59,7 +60,7 @@ export default function NewCanvasModal({
           </div>
 
           <div>
-            <label className="block text-[10px] uppercase font-bold text-slate-400 mb-2 tracking-wider">
+            <label className="block text-[11px] uppercase font-bold text-slate-400 mb-2 tracking-wider">
               Canvas Type
             </label>
             <div className="space-y-2">
@@ -71,10 +72,10 @@ export default function NewCanvasModal({
                     : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                 }`}
               >
-                <span className="text-2xl">🌐</span>
+                <Network size={24} aria-hidden />
                 <div className="flex-1">
                   <div className="font-bold text-xs">Master World Web</div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[11px] text-slate-400">
                     Network graph connecting all articles, locations, factions & artifacts in your universe.
                   </div>
                 </div>
@@ -88,10 +89,10 @@ export default function NewCanvasModal({
                     : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
                 }`}
               >
-                <span className="text-2xl">🌳</span>
+                <GitFork size={24} aria-hidden />
                 <div className="flex-1">
                   <div className="font-bold text-xs">Family Tree & Lineage</div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[11px] text-slate-400">
                     Hierarchical character tree for marriages, parentage, ancestors, and bloodlines.
                   </div>
                 </div>
@@ -110,7 +111,7 @@ export default function NewCanvasModal({
             <button
               type="submit"
               disabled={!title.trim()}
-              className="px-5 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg shadow-lg shadow-gold/20 disabled:opacity-40 transition-colors text-xs"
+              className="px-5 py-2 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-lg shadow-lg shadow-gold/20 disabled:opacity-40 transition-colors text-xs"
             >
               Create Canvas
             </button>

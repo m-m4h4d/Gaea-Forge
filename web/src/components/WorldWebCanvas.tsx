@@ -11,6 +11,7 @@ import {
 import NodeConnectModal from './NodeConnectModal';
 import WorldWebCanvas3D from './WorldWebCanvas3D';
 import { computeLinkPairs } from '@/lib/links';
+import { Lightbulb, Orbit, Wand2 } from 'lucide-react';
 
 interface WorldWebCanvasProps {
   canvasData: CanvasData;
@@ -295,21 +296,21 @@ export default function WorldWebCanvas({
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#111216] text-parchment relative overflow-hidden select-none">
+    <div className="w-full h-full flex flex-col bg-slate-950 text-parchment relative overflow-hidden select-none">
       {/* Top Toolbar */}
-      <div className="bg-[#18191e]/90 border-b border-slate-800/80 p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 z-30 backdrop-blur-md overflow-x-auto custom-scrollbar">
+      <div className="bg-slate-900/90 border-b border-slate-800/80 p-2.5 sm:p-3 flex items-center justify-between gap-2 shrink-0 z-30 backdrop-blur-md overflow-x-auto custom-scrollbar">
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setIs3DMode(true)}
             className="px-3 py-1.5 bg-gradient-to-r from-amber-500/20 to-purple-600/20 border border-gold/40 text-gold hover:border-gold font-bold rounded-lg text-xs shadow-sm shadow-gold/10 flex items-center gap-1.5 transition-all shrink-0"
             title="Switch to Interactive 3D Cosmos Space"
           >
-            <span>🌌</span> <span>3D Cosmos</span>
+            <Orbit size={13} aria-hidden /> <span>3D Cosmos</span>
           </button>
 
           <button
             onClick={handleAddFreeNode}
-            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"
+            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"
           >
             <span>+</span> Add Floating Node
           </button>
@@ -317,7 +318,7 @@ export default function WorldWebCanvas({
             onClick={handleAutoArrangeWeb}
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-xs border border-slate-700 transition-colors flex items-center gap-1 shrink-0"
           >
-            <span>⚡</span> Auto-Arrange Constellation
+            <Wand2 size={13} aria-hidden /> Auto-Arrange Constellation
           </button>
           <span className="text-xs text-slate-400 font-medium ml-2 shrink-0 hidden sm:inline">
             <strong>{nodes.length}</strong> Floating Points
@@ -325,7 +326,7 @@ export default function WorldWebCanvas({
         </div>
 
         <div className="text-xs text-slate-400 hidden lg:flex items-center gap-3 shrink-0">
-          <span>💡 <em>Click any point/label to open Lore</em></span>
+          <span className="flex items-center gap-1"><Lightbulb size={12} aria-hidden /> <em>Click any point/label to open Lore</em></span>
           <span>•</span>
           <span><em>Drag ring to connect points</em></span>
           <span>•</span>
@@ -354,7 +355,7 @@ export default function WorldWebCanvas({
               setZoom(1);
               setPan({ x: 0, y: 0 });
             }}
-            className="px-2 py-1 text-[10px] bg-slate-900 hover:bg-slate-800 rounded text-slate-400 font-medium"
+            className="px-2 py-1 text-[11px] bg-slate-900 hover:bg-slate-800 rounded text-slate-400 font-medium"
           >
             Reset
           </button>
@@ -367,7 +368,7 @@ export default function WorldWebCanvas({
         onMouseDown={handleMouseDownBg}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        className="flex-1 relative cursor-grab active:cursor-grabbing overflow-hidden canvas-bg bg-[#111216]"
+        className="flex-1 relative cursor-grab active:cursor-grabbing overflow-hidden canvas-bg bg-slate-950"
       >
         <div
           className="absolute inset-0 origin-top-left pointer-events-none"
@@ -388,7 +389,7 @@ export default function WorldWebCanvas({
                   y1={from.y}
                   x2={to.x}
                   y2={to.y}
-                  stroke={isHighlighted ? '#fbbf24' : '#64748b'}
+                  style={{ stroke: isHighlighted ? 'var(--accent)' : 'var(--n-600)' }}
                   strokeOpacity={isHighlighted ? 0.9 : 0.4}
                   strokeWidth={isHighlighted ? 2 : 1.25}
                   strokeDasharray="6,5"
@@ -432,7 +433,7 @@ export default function WorldWebCanvas({
                     y1={fromNode.y}
                     x2={toNode.x}
                     y2={toNode.y}
-                    stroke={isHighlighted ? '#fbbf24' : '#475569'}
+                    style={{ stroke: isHighlighted ? 'var(--accent)' : 'var(--n-700)' }}
                     strokeOpacity={isHighlighted ? 0.9 : 0.45}
                     strokeWidth={isHighlighted ? 2.5 : 1.5}
                     className="transition-colors duration-150"
@@ -451,7 +452,7 @@ export default function WorldWebCanvas({
                   y1={fromNode.y}
                   x2={mousePosCanvas.x}
                   y2={mousePosCanvas.y}
-                  stroke="#fbbf24"
+                  className="stroke-gold"
                   strokeWidth="2"
                   strokeDasharray="4,4"
                 />

@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useRef } from 'react';
 import { LinkTarget, LoreLink, loreLinkRefreshKey } from './editor/loreLink';
 import { LORE_LINK_ATTR } from '@/lib/links';
+import { List, ListOrdered, Minus, Quote, Redo2, Undo2 } from 'lucide-react';
 
 // How many of the editor's own recent outputs to remember when filtering echoes
 const EMITTED_HISTORY_SIZE = 100;
@@ -74,7 +75,7 @@ export default function Editor({
         return true;
       },
       attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[350px] p-3 sm:p-6 text-parchment font-serif leading-relaxed',
+        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[350px] p-3 sm:p-6 text-parchment font-serif leading-relaxed',
       },
     },
   });
@@ -119,7 +120,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
               editor.isActive('heading', { level: 1 })
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Heading 1"
@@ -131,7 +132,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
               editor.isActive('heading', { level: 2 })
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Heading 2"
@@ -143,7 +144,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
               editor.isActive('heading', { level: 3 })
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Heading 3"
@@ -161,7 +162,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={`px-2.5 py-1 rounded text-xs font-bold transition-all ${
               editor.isActive('bold')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Bold"
@@ -173,7 +174,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleItalic().run()}
             className={`px-2.5 py-1 rounded text-xs italic font-serif transition-all ${
               editor.isActive('italic')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Italic"
@@ -185,7 +186,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleStrike().run()}
             className={`px-2.5 py-1 rounded text-xs line-through transition-all ${
               editor.isActive('strike')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Strikethrough"
@@ -197,7 +198,7 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleCode().run()}
             className={`px-2.5 py-1 rounded text-xs font-mono transition-all ${
               editor.isActive('code')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Inline Code"
@@ -215,36 +216,36 @@ export default function Editor({
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             className={`px-2.5 py-1 rounded text-xs transition-all ${
               editor.isActive('bulletList')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Bullet List"
           >
-            • List
+            <List size={13} aria-hidden /> List
           </button>
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             className={`px-2.5 py-1 rounded text-xs transition-all ${
               editor.isActive('orderedList')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Numbered List"
           >
-            1. List
+            <ListOrdered size={13} aria-hidden /> List
           </button>
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             className={`px-2.5 py-1 rounded text-xs transition-all ${
               editor.isActive('blockquote')
-                ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                ? 'bg-gold/20 text-gold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Quote"
           >
-            “ Quote
+            <Quote size={12} aria-hidden /> Quote
           </button>
           <button
             type="button"
@@ -252,7 +253,7 @@ export default function Editor({
             className="px-2.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all"
             title="Horizontal Divider"
           >
-            ― Divider
+            <Minus size={13} aria-hidden /> Divider
           </button>
         </div>
 
@@ -267,7 +268,7 @@ export default function Editor({
             className="px-2.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 hover:bg-slate-800 transition-all"
             title="Undo"
           >
-            ↩ Undo
+            <Undo2 size={13} aria-hidden /> Undo
           </button>
           <button
             type="button"
@@ -276,7 +277,7 @@ export default function Editor({
             className="px-2.5 py-1 rounded text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 hover:bg-slate-800 transition-all"
             title="Redo"
           >
-            ↪ Redo
+            <Redo2 size={13} aria-hidden /> Redo
           </button>
         </div>
       </div>

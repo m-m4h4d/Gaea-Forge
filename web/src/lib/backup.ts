@@ -1,6 +1,7 @@
 // Full-world backup, restore and safety snapshots for Gaea-Forge
 import { CanvasData, GaeaDatabase, LoreArticle, WorldSnapshot } from './database';
 import { ROLES, RoleId } from './roles';
+import { sanitizeImportedHtml } from './sanitizeHtml';
 
 export const BACKUP_FORMAT = 'gaea-forge-backup';
 export const BACKUP_VERSION = 1;
@@ -54,7 +55,7 @@ function normalizeArticle(a: LoreArticle): LoreArticle {
     id: a.id,
     title: a.title,
     category: typeof a.category === 'string' && a.category ? a.category : 'Notes',
-    content: typeof a.content === 'string' ? a.content : '',
+    content: typeof a.content === 'string' ? sanitizeImportedHtml(a.content) : '',
     tags: Array.isArray(a.tags) ? a.tags.filter((t) => typeof t === 'string') : [],
     properties: Array.isArray(a.properties)
       ? a.properties.filter((p) => p && typeof p.key === 'string' && typeof p.value === 'string')

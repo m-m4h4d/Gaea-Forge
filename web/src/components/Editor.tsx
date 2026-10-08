@@ -3,6 +3,8 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useRef } from 'react';
+import { LinkTarget, LoreLink, loreLinkRefreshKey } from './editor/loreLink';
+import { LORE_LINK_ATTR } from '@/lib/links';
 
 // How many of the editor's own recent outputs to remember when filtering echoes
 const EMITTED_HISTORY_SIZE = 100;
@@ -11,15 +13,45 @@ interface EditorProps {
   content: string;
   onChange: (newContent: string) => void;
   readOnly?: boolean;
+  // Articles that [[ links can point to
+  linkTargets?: LinkTarget[];
+  onOpenArticle?: (articleId: string) => void;
+  // Create an article from the [[ picker; returns the new article's id
+  onCreateLinkedArticle?: (title: string) => string;
 }
 
-export default function Editor({ content, onChange, readOnly = false }: EditorProps) {
+export default function Editor({
+  content,
+  onChange,
+  readOnly = false,
+  linkTargets = [],
+  onOpenArticle,
+  onCreateLinkedArticle,
+}: EditorProps) {
   // HTML this editor has emitted. A content prop matching one of these is an echo
   // of the user's own typing (possibly stale), not an external change.
   const emittedRef = useRef(new Set<string>());
 
+  // The editor's extensions are created once, so they read live values through refs
+  const linkTargetsRef = useRef(linkTargets);
+  const onOpenArticleRef = useRef(onOpenArticle);
+  const onCreateRef = useRef(onCreateLinkedArticle);
+  useEffect(() => {
+    linkTargetsRef.current = linkTargets;
+    onOpenArticleRef.current = onOpenArticle;
+    onCreateRef.current = onCreateLinkedArticle;
+  });
+
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      // The refs are only read inside editor event handlers, never during render
+      // eslint-disable-next-line react-hooks/refs
+      LoreLink.configure({
+        getTargets: () => linkTargetsRef.current,
+        onCreate: (title) => onCreateRef.current?.(title) ?? '',
+      }),
+    ],
     immediatelyRender: false,
     content: content || '<p>Start typing your lore...</p>',
     editable: !readOnly,
@@ -33,6 +65,14 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
       onChange(html);
     },
     editorProps: {
+      // Clicking a link to an existing article opens it
+      handleClick: (_view, _pos, event) => {
+        const link = (event.target as HTMLElement | null)?.closest(`[${LORE_LINK_ATTR}]`);
+        const id = link?.getAttribute(LORE_LINK_ATTR);
+        if (!id || !linkTargetsRef.current.some((t) => t.id === id)) return false;
+        onOpenArticleRef.current?.(id);
+        return true;
+      },
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[350px] p-3 sm:p-6 text-parchment font-serif leading-relaxed',
       },
@@ -47,6 +87,14 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
     emittedRef.current.clear();
     editor.commands.setContent(content || '', { emitUpdate: false });
   }, [content, editor]);
+
+  // Re-check which links are broken when articles are added or deleted
+  const targetIdsKey = linkTargets.map((t) => t.id).join('\n');
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(editor.state.tr.setMeta(loreLinkRefreshKey, true));
+    }
+  }, [editor, targetIdsKey]);
 
   if (!editor) {
     return (

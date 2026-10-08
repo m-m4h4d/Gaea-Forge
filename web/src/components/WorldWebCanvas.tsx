@@ -10,6 +10,7 @@ import {
 } from '@/lib/database';
 import NodeConnectModal from './NodeConnectModal';
 import WorldWebCanvas3D from './WorldWebCanvas3D';
+import { computeLinkPairs } from '@/lib/links';
 
 interface WorldWebCanvasProps {
   canvasData: CanvasData;
@@ -255,12 +256,29 @@ export default function WorldWebCanvas({
   };
 
   // Highlight connections connected to hovered node
+  // Dashed lines for [[links]] between articles, unless a manual connection already joins them
+  const pairKey = (a: string, b: string) => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
+  const manualPairs = new Set(canvasData.connections.map((c) => pairKey(c.fromNodeId, c.toNodeId)));
+  const nodeByArticleId = new Map(
+    nodes.filter((n) => n.articleId).map((n) => [n.articleId as string, n])
+  );
+  const linkEdges = computeLinkPairs(articles).flatMap(([a, b]) => {
+    const from = nodeByArticleId.get(a);
+    const to = nodeByArticleId.get(b);
+    if (!from || !to || manualPairs.has(pairKey(from.id, to.id))) return [];
+    return [{ id: `link-${pairKey(a, b)}`, from, to }];
+  });
+
   const connectedNodeIds = new Set<string>();
   if (hoveredNodeId) {
     connectedNodeIds.add(hoveredNodeId);
     canvasData.connections.forEach((c) => {
       if (c.fromNodeId === hoveredNodeId) connectedNodeIds.add(c.toNodeId);
       if (c.toNodeId === hoveredNodeId) connectedNodeIds.add(c.fromNodeId);
+    });
+    linkEdges.forEach(({ from, to }) => {
+      if (from.id === hoveredNodeId) connectedNodeIds.add(to.id);
+      if (to.id === hoveredNodeId) connectedNodeIds.add(from.id);
     });
   }
 
@@ -310,6 +328,8 @@ export default function WorldWebCanvas({
           <span>💡 <em>Click any point/label to open Lore</em></span>
           <span>•</span>
           <span><em>Drag ring to connect points</em></span>
+          <span>•</span>
+          <span><em>Dashed lines are [[links]] between articles</em></span>
         </div>
 
         {/* Zoom Controls */}
@@ -357,6 +377,26 @@ export default function WorldWebCanvas({
         >
           {/* SVG CONSTELLATION LINES LAYER */}
           <svg className="absolute inset-0 w-[5000px] h-[5000px] pointer-events-none overflow-visible">
+            {/* Article link lines (derived from [[links]], not editable here) */}
+            {linkEdges.map(({ id, from, to }) => {
+              const isHighlighted = hoveredNodeId === from.id || hoveredNodeId === to.id;
+              return (
+                <line
+                  key={id}
+                  data-testid="article-link-line"
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  stroke={isHighlighted ? '#fbbf24' : '#64748b'}
+                  strokeOpacity={isHighlighted ? 0.9 : 0.4}
+                  strokeWidth={isHighlighted ? 2 : 1.25}
+                  strokeDasharray="6,5"
+                  className="transition-colors duration-150"
+                />
+              );
+            })}
+
             {canvasData.connections.map((conn) => {
               const fromNode = nodes.find((n) => n.id === conn.fromNodeId);
               const toNode = nodes.find((n) => n.id === conn.toNodeId);

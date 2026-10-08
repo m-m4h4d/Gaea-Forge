@@ -28,6 +28,7 @@ import {
   isCharacterCategory,
   mergeCategories,
 } from '@/lib/articles';
+import { computeBacklinks, extractLinkedArticleIds, resolveImportedWikiLinks } from '@/lib/links';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 
@@ -68,6 +69,15 @@ export default function Home() {
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
   const characterArticles = articles.filter((a) => isCharacterCategory(a.category));
   const displayCategories = mergeCategories(categories, articles);
+
+  // Links between articles
+  const linkTargets = articles.map(({ id, title, category }) => ({ id, title, category }));
+  const backlinks = activeArticle ? computeBacklinks(articles).get(activeArticle.id) ?? [] : [];
+  const outgoingLinks = activeArticle
+    ? extractLinkedArticleIds(activeArticle.content)
+        .filter((id) => id !== activeArticle.id)
+        .map((id) => ({ id, title: articles.find((a) => a.id === id)?.title }))
+    : [];
 
   // Auto-collapse side panels on narrow windows
   useEffect(() => {
@@ -136,10 +146,27 @@ export default function Home() {
     world.updateArticle({ ...activeArticle, content: newContent });
   };
 
+  // Show the folder a new article lands in
+  const expandCategory = (category: string) =>
+    setExpandedCategories((prev) => (prev.has(category) ? prev : new Set(prev).add(category)));
+
   const handleCreateArticle = (data: { title: string; category: LoreCategory; tags: string[] }) => {
     const article = createArticleDraft(data);
     world.addArticle(article);
+    expandCategory(article.category);
     setActiveArticleId(article.id);
+  };
+
+  // Create an article from the editor's [[ picker, in the current article's category
+  const handleCreateLinkedArticle = (title: string) => {
+    const article = createArticleDraft({
+      title,
+      category: activeArticle?.category ?? displayCategories[0],
+      tags: [],
+    });
+    world.addArticle(article);
+    expandCategory(article.category);
+    return article.id;
   };
 
   const handleDeleteActiveArticle = async () => {
@@ -195,7 +222,9 @@ export default function Home() {
       return false;
     }
 
-    await world.importArticles(imported, mode, currentRoleId);
+    // Turn [[Title]] references into links, against existing articles too when merging
+    const linked = resolveImportedWikiLinks(imported, mode === 'merge' ? articles : []);
+    await world.importArticles(linked, mode, currentRoleId);
     if (imported.length > 0) setActiveArticleId(imported[0].id);
     showNotice('success', `Imported ${imported.length} articles.`);
     return true;
@@ -291,6 +320,9 @@ export default function Home() {
                   key={activeArticle.id}
                   content={activeArticle.content}
                   onChange={handleContentChange}
+                  linkTargets={linkTargets}
+                  onOpenArticle={openArticle}
+                  onCreateLinkedArticle={handleCreateLinkedArticle}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-slate-500">
@@ -327,6 +359,9 @@ export default function Home() {
           onUpdate={world.updateArticle}
           onDelete={handleDeleteActiveArticle}
           onTagClick={setSelectedTagFilter}
+          backlinks={backlinks}
+          outgoingLinks={outgoingLinks}
+          onOpenArticle={openArticle}
         />
       )}
 

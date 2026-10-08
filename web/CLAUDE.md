@@ -30,12 +30,14 @@ web/src/
     useArticleSaver.ts    Debounced article writes + unload recovery journal
     useNotice.ts          Transient success/error toast
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, canvases, modals)
+    editor/               TipTap extensions: loreLink ([[ links between articles) + picker
   lib/
     database.ts           RxDB setup, schemas, types, seed data
     backup.ts             Backup format, parsing, snapshots, canvas pruning
     articles.ts           Pure article helpers (search, categories, factories)
     documentParser.ts     .pdf/.docx/.doc/.md/.txt/.json import and segmentation
     familyTreeLayout.ts   Family tree auto-arrange
+    links.ts              Article links: extraction, backlinks, [[Title]] resolution
     roles.ts              Workspace roles: categories, wording, theme colors
 web/e2e/                  Playwright tests against the static export
 ```
@@ -53,6 +55,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
 - Deleting an article must also remove its canvas nodes and their connections (`pruneCanvasesToArticles`).
+- Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 
 ## Conventions

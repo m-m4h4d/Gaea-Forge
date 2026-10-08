@@ -55,3 +55,27 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--theme-accent);
 }
+
+/* Links between articles ([[ in the editor) */
+.prose .lore-link {
+  color: var(--theme-accent);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  font-weight: inherit;
+}
+.prose .lore-link:hover {
+  text-decoration-style: solid;
+}
+.prose .lore-link-missing,
+.prose .lore-link-missing .lore-link {
+  color: #f87171;
+  text-decoration-style: wavy;
+  cursor: help;
+}
+/* The [[query]] being typed while the link picker is open */
+.prose .suggestion {
+  background: var(--theme-accent-light);
+  border-radius: 3px;
+}

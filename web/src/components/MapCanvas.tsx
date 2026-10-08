@@ -6,12 +6,15 @@ import { CanvasData, CanvasNode, LoreArticle } from '@/lib/database';
 import { categoryColor } from '@/lib/categoryColors';
 import { MAX_MAP_DIMENSION, readImageFile } from '@/lib/images';
 import { fitView, MapView, Point, Size, toImageFraction, toViewportPoint, zoomAt } from '@/lib/mapView';
+import { useImageUrl } from '@/hooks/useImageUrl';
 
 interface MapCanvasProps {
   canvasData: CanvasData;
   onChange: (updated: CanvasData) => void;
   articles: LoreArticle[];
   onOpenArticle: (articleId: string) => void;
+  // Stores the uploaded image and returns the value to save as mapImage
+  storeImage: (dataUrl: string) => Promise<string>;
 }
 
 const createId = () => `pin-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -26,7 +29,8 @@ type PinEditor = { pin?: CanvasNode; at: Point };
 
 // A map image with pins linking places to articles. Pins are stored as canvas
 // nodes whose x and y are fractions of the image size.
-export default function MapCanvas({ canvasData, onChange, articles, onOpenArticle }: MapCanvasProps) {
+export default function MapCanvas({ canvasData, onChange, articles, onOpenArticle, storeImage }: MapCanvasProps) {
+  const mapImageUrl = useImageUrl(canvasData.mapImage);
   const viewportRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageSize, setImageSize] = useState<Size | null>(null);
@@ -83,7 +87,7 @@ export default function MapCanvas({ canvasData, onChange, articles, onOpenArticl
     if (!file) return;
     setUploadError(null);
     try {
-      const mapImage = await readImageFile(file, MAX_MAP_DIMENSION);
+      const mapImage = await storeImage(await readImageFile(file, MAX_MAP_DIMENSION));
       setImageSize(null);
       onChange({ ...canvasData, mapImage });
     } catch (e) {
@@ -282,7 +286,7 @@ export default function MapCanvas({ canvasData, onChange, articles, onOpenArticl
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={canvasData.mapImage}
+            src={mapImageUrl}
             alt={`Map: ${canvasData.title}`}
             draggable={false}
             onLoad={(e) => setImageSize({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}

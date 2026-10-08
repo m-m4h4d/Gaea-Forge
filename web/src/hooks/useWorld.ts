@@ -23,6 +23,8 @@ import {
   upsertArticles,
 } from '@/lib/backup';
 import { RoleId } from '@/lib/roles';
+import { externalizeImages, storeImage as storeImageAsset } from '@/lib/assets';
+import { MAX_COVER_DIMENSION, readImageFile } from '@/lib/images';
 import { useArticleSaver } from './useArticleSaver';
 import { useCanvasSaver } from './useCanvasSaver';
 import { Notify } from './useNotice';
@@ -124,6 +126,25 @@ export function useWorld(notify: Notify) {
       }
     }
     await saveCanvases(prunedCanvases);
+  };
+
+  // ---- Images ----
+
+  // Store an image data URL as an asset and return the reference to save in
+  // place of it. Without a database it stays inline, as older versions did.
+  const storeImage = async (dataUrl: string): Promise<string> => (db ? storeImageAsset(db, dataUrl) : dataUrl);
+
+  // Downscale, store and attach cover art, saving the article right away so the
+  // reference to the new image is never left only in memory
+  const setArticleCover = async (article: LoreArticle, file: File) => {
+    try {
+      const coverImage = await storeImage(await readImageFile(file, MAX_COVER_DIMENSION));
+      updateArticle({ ...article, coverImage });
+      await saver.flush();
+    } catch (e) {
+      console.error('Cover image upload failed:', e);
+      notify('error', e instanceof Error ? e.message : 'Could not save the image.');
+    }
   };
 
   // ---- Canvases ----
@@ -235,7 +256,8 @@ export function useWorld(notify: Notify) {
     if (!db) throw new Error('The local database is not available, so nothing was imported.');
     // Imported versions win over unsaved edits to the same articles
     saver.discard(imported.map((a) => a.id));
-    await upsertArticles(db, imported);
+    const { articles: withStoredImages } = await externalizeImages(db, imported, []);
+    await upsertArticles(db, withStoredImages);
   };
 
   // Replace the world with a backup; returns the canvases actually written
@@ -252,6 +274,8 @@ export function useWorld(notify: Notify) {
     saveError: saver.error,
     flushSaves: saver.flush,
     updateArticle,
+    setArticleCover,
+    storeImage,
     addArticle,
     deleteArticle,
     updateCanvas,

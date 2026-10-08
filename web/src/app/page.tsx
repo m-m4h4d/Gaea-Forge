@@ -372,6 +372,7 @@ export default function Home() {
               key={activeCanvas.id}
               canvasData={activeCanvas}
               onChange={world.updateCanvas}
+              storeImage={world.storeImage}
               articles={articles}
               onOpenArticle={openArticle}
             />
@@ -410,6 +411,7 @@ export default function Home() {
           timelineEntries={timelineEntries}
           mapEntries={mapEntries}
           onOpenCanvas={openCanvas}
+          onCoverUpload={world.setArticleCover}
         />
       )}
 

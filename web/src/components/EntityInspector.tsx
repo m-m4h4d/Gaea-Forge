@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { EntityProperty, LoreArticle, LoreCategory } from '@/lib/database';
 import { ChevronRight, Hourglass, ImagePlus, MapPin, PanelRight, X } from 'lucide-react';
 import { ArticleTimelineEntry, formatEventDate } from '@/lib/timeline';
+import { useImageUrl } from '@/hooks/useImageUrl';
 
 interface EntityInspectorProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ interface EntityInspectorProps {
   timelineEntries: ArticleTimelineEntry[];
   mapEntries: { canvasId: string; canvasTitle: string }[];
   onOpenCanvas: (canvasId: string) => void;
+  onCoverUpload: (article: LoreArticle, file: File) => void;
 }
 
 // Right panel for the active article: artwork, title, category, tags and properties
@@ -39,7 +41,9 @@ export default function EntityInspector({
   timelineEntries,
   mapEntries,
   onOpenCanvas,
+  onCoverUpload,
 }: EntityInspectorProps) {
+  const coverUrl = useImageUrl(article?.coverImage);
   const [newTagInput, setNewTagInput] = useState('');
   const [showAddTagInput, setShowAddTagInput] = useState(false);
   const [showAddPropInput, setShowAddPropInput] = useState(false);
@@ -120,21 +124,11 @@ export default function EntityInspector({
     onUpdate(updated);
   };
 
-  // Handle Cover Image Upload (Base64 Data URL)
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !article) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const dataUrl = evt.target?.result as string;
-      const updated: LoreArticle = {
-        ...article,
-        coverImage: dataUrl,
-      };
-      onUpdate(updated);
-    };
-    reader.readAsDataURL(file);
+    // Reset so choosing the same file again still triggers a change
+    e.target.value = '';
+    if (file && article) onCoverUpload(article, file);
   };
 
   return (
@@ -176,10 +170,10 @@ export default function EntityInspector({
                 Entity Artwork / Map
               </h3>
               <label className="aspect-video w-full bg-slate-950 rounded-xl flex flex-col items-center justify-center border border-slate-800 hover:border-gold cursor-pointer transition-all group relative overflow-hidden shadow-inner">
-                {article.coverImage ? (
+                {coverUrl ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={article.coverImage}
+                    src={coverUrl}
                     alt={article.title}
                     className="w-full h-full object-cover rounded-xl"
                   />
@@ -194,6 +188,7 @@ export default function EntityInspector({
                 <input
                   type="file"
                   accept="image/*"
+                  aria-label="Artwork image file"
                   onChange={handleImageUpload}
                   className="hidden"
                 />

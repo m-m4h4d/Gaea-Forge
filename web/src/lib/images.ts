@@ -1,6 +1,8 @@
 // Reading user images into data URLs (browser only)
 
 export const MAX_MAP_DIMENSION = 4096;
+// Cover art is shown at most a few hundred pixels wide
+export const MAX_COVER_DIMENSION = 2048;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

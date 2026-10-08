@@ -395,7 +395,8 @@ export function segmentDocumentText(text: string, activeRole: RoleId): ParsedEnt
   function isMajorSectionHeader(line: string): boolean {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 50) return false;
-    if (/^#{1,2}\s+[A-Za-z0-9]/.test(trimmed)) return true;
+    // Markdown H1 opens a section; H2-H4 are entities (see isEntityHeader)
+    if (/^#\s+[A-Za-z0-9]/.test(trimmed)) return true;
     const lower = trimmed.toLowerCase().replace(/[:#]/g, '').trim();
     return KNOWN_SECTIONS.includes(lower);
   }

@@ -102,12 +102,26 @@ The static export files will be generated in `web/out/`.
 
 ---
 
+## 🧪 Testing
+
+```bash
+npm run lint        # ESLint
+npm run typecheck   # TypeScript
+npm test            # Unit tests (Vitest)
+npm run build       # Static export to web/out
+npm run test:e2e    # End-to-end tests (Playwright, runs against web/out)
+```
+
+The first time you run the end-to-end tests, install the browser with `npx playwright install chromium` from `web/`. CI runs all of the above on every pull request.
+
+---
+
 ## 📁 Project Structure
 
 ```text
 Gaea-Forge/
 ├── package.json              # Monorepo root workspace configuration
-├── README.md                 # Project documentation
+├── .github/workflows/ci.yml  # Lint, type-check, unit, build and e2e checks
 ├── src-tauri/                # Tauri v2 native desktop backend (Rust)
 │   ├── Cargo.toml            # Rust dependencies
 │   ├── tauri.conf.json       # Tauri window & bundle configuration
@@ -116,20 +130,14 @@ Gaea-Forge/
 │       ├── lib.rs            # Desktop window lifecycle & plugins
 │       └── main.rs           # Rust entry point
 └── web/                      # Next.js frontend application
-    ├── package.json          # Web dependencies
+    ├── package.json          # Web dependencies and scripts
     ├── next.config.ts        # Next.js configuration (static export)
+    ├── e2e/                  # Playwright end-to-end tests
     └── src/
         ├── app/              # App Router (main page, layout, globals)
-        ├── components/       # UI Components (Editor, Canvases, Modals)
-        │   ├── Editor.tsx
-        │   ├── FamilyTreeCanvas.tsx
-        │   ├── WorldWebCanvas.tsx
-        │   ├── NewArticleModal.tsx
-        │   ├── NewCanvasModal.tsx
-        │   ├── NodeConnectModal.tsx
-        │   └── ExportImportModal.tsx
-        └── lib/              # Database (RxDB schemas, seed data)
-            └── database.ts
+        ├── components/       # UI: Sidebar, AppHeader, EntityInspector, Editor, canvases, modals
+        ├── hooks/            # useWorld (data), useArticleSaver (debounced saves), useNotice
+        └── lib/              # RxDB schemas, backup/restore, document import, layout helpers (+ unit tests)
 ```
 
 ---

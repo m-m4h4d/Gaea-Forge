@@ -9,6 +9,7 @@ import {
   LoreArticle,
 } from '@/lib/database';
 import NodeConnectModal from './NodeConnectModal';
+import { layoutFamilyTree } from '@/lib/familyTreeLayout';
 
 interface FamilyTreeCanvasProps {
   canvasData: CanvasData;
@@ -320,87 +321,7 @@ export default function FamilyTreeCanvas({
   const handleAutoArrange = () => {
     if (nodes.length === 0) return;
 
-    // Build relationship maps
-    const parentToChildren = new Map<string, string[]>();
-    const spouseMap = new Map<string, string>();
-    const childToParents = new Map<string, string[]>();
-
-    canvasData.connections.forEach((c) => {
-      if (c.relationship === 'parent-child') {
-        const children = parentToChildren.get(c.fromNodeId) || [];
-        children.push(c.toNodeId);
-        parentToChildren.set(c.fromNodeId, children);
-
-        const parents = childToParents.get(c.toNodeId) || [];
-        parents.push(c.fromNodeId);
-        childToParents.set(c.toNodeId, parents);
-      } else if (c.relationship === 'spouse') {
-        spouseMap.set(c.fromNodeId, c.toNodeId);
-        spouseMap.set(c.toNodeId, c.fromNodeId);
-      }
-    });
-
-    // Find root nodes (no parents)
-    const roots = nodes.filter((n) => !childToParents.has(n.id));
-
-    // Calculate level (Y depth) via BFS/DFS
-    const nodeLevels = new Map<string, number>();
-    const visited = new Set<string>();
-
-    const assignLevel = (nodeId: string, level: number) => {
-      if (visited.has(nodeId)) return;
-      visited.add(nodeId);
-      nodeLevels.set(nodeId, level);
-
-      // Spouse gets same level
-      const spouseId = spouseMap.get(nodeId);
-      if (spouseId && !visited.has(spouseId)) {
-        assignLevel(spouseId, level);
-      }
-
-      // Children get level + 1
-      const children = parentToChildren.get(nodeId) || [];
-      children.forEach((childId) => {
-        assignLevel(childId, level + 1);
-      });
-    };
-
-    roots.forEach((root) => assignLevel(root.id, 0));
-
-    // Assign level 0 to any remaining unvisited nodes
-    nodes.forEach((n) => {
-      if (!visited.has(n.id)) {
-        assignLevel(n.id, 0);
-      }
-    });
-
-    // Group node IDs by level
-    const levelGroups = new Map<number, string[]>();
-    nodeLevels.forEach((level, nodeId) => {
-      const group = levelGroups.get(level) || [];
-      group.push(nodeId);
-      levelGroups.set(level, group);
-    });
-
-    // Compute (x, y) coordinates for each node
-    const updatedNodesMap = new Map<string, CanvasNode>();
-    nodes.forEach((n) => updatedNodesMap.set(n.id, { ...n }));
-
-    levelGroups.forEach((nodeIds, level) => {
-      const y = 100 + level * 220;
-      const totalWidth = nodeIds.length * 280;
-      const startX = 350 - totalWidth / 2;
-
-      nodeIds.forEach((nodeId, idx) => {
-        const node = updatedNodesMap.get(nodeId);
-        if (node) {
-          node.x = Math.round(startX + idx * 280);
-          node.y = Math.round(y);
-        }
-      });
-    });
-
-    const arrangedNodes = Array.from(updatedNodesMap.values());
+    const arrangedNodes = layoutFamilyTree(nodes, canvasData.connections);
 
     setNodes(arrangedNodes);
     onChange({

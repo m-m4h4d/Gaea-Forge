@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GaeaDatabase, LoreArticle } from './database';
-import { upsertArticles } from './backup';
+import { GaeaDatabase, LoreArticle } from '@/lib/database';
+import { upsertArticles } from '@/lib/backup';
 
 export type SaveStatus = 'saved' | 'pending' | 'saving' | 'error';
 

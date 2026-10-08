@@ -2,7 +2,10 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+
+// How many of the editor's own recent outputs to remember when filtering echoes
+const EMITTED_HISTORY_SIZE = 100;
 
 interface EditorProps {
   content: string;
@@ -11,13 +14,23 @@ interface EditorProps {
 }
 
 export default function Editor({ content, onChange, readOnly = false }: EditorProps) {
+  // HTML this editor has emitted. A content prop matching one of these is an echo
+  // of the user's own typing (possibly stale), not an external change.
+  const emittedRef = useRef(new Set<string>());
+
   const editor = useEditor({
     extensions: [StarterKit],
     immediatelyRender: false,
     content: content || '<p>Start typing your lore...</p>',
     editable: !readOnly,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      const emitted = emittedRef.current;
+      emitted.add(html);
+      if (emitted.size > EMITTED_HISTORY_SIZE) {
+        emitted.delete(emitted.values().next().value as string);
+      }
+      onChange(html);
     },
     editorProps: {
       attributes: {
@@ -27,10 +40,12 @@ export default function Editor({ content, onChange, readOnly = false }: EditorPr
   });
 
   // Sync internal editor content when active article content changes externally
+  // (e.g. an import overwrote this article). Resetting on our own echoes would
+  // discard keystrokes typed since that echo was produced.
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content || '');
-    }
+    if (!editor || emittedRef.current.has(content) || content === editor.getHTML()) return;
+    emittedRef.current.clear();
+    editor.commands.setContent(content || '', { emitUpdate: false });
   }, [content, editor]);
 
   if (!editor) {

@@ -1,26 +1,38 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { LoreArticle } from '@/lib/database';
-import { RoleId } from '@/lib/roles';
-import { parseDocumentFile, ParsedEntityDraft } from '@/lib/documentParser';
+import { LoreArticle, WorldSnapshot } from '@/lib/database';
+import { ROLES, RoleId } from '@/lib/roles';
+import { articlesToDrafts, parseDocumentFile, ParsedEntityDraft } from '@/lib/documentParser';
+import { parseWorldBackup, WorldBackup } from '@/lib/backup';
 
 interface DocumentImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  articles: LoreArticle[];
+  articleCount: number;
+  canvasCount: number;
   activeRole: RoleId;
   categories: string[];
-  onImportArticles: (newArticles: LoreArticle[], mode: 'merge' | 'replace') => void;
+  snapshots: WorldSnapshot[];
+  // Each returns false if the user cancelled, and throws if the write failed
+  onImportArticles: (newArticles: LoreArticle[], mode: 'merge' | 'replace') => Promise<boolean>;
+  onRestoreBackup: (backup: WorldBackup) => Promise<boolean>;
+  onRestoreSnapshot: (snapshot: WorldSnapshot) => Promise<boolean>;
+  onExportBackup: () => void;
 }
 
 export default function DocumentImportModal({
   isOpen,
   onClose,
-  articles,
+  articleCount,
+  canvasCount,
   activeRole,
   categories,
+  snapshots,
   onImportArticles,
+  onRestoreBackup,
+  onRestoreSnapshot,
+  onExportBackup,
 }: DocumentImportModalProps) {
   const [activeTab, setActiveTab] = useState<'import' | 'export'>('import');
   
@@ -36,6 +48,11 @@ export default function DocumentImportModal({
   const [searchFilter, setSearchFilter] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Full world backup detected in an uploaded .json file
+  const [pendingBackup, setPendingBackup] = useState<WorldBackup | null>(null);
+  const [isWorking, setIsWorking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -45,8 +62,17 @@ export default function DocumentImportModal({
     setIsParsing(true);
     setParseError(null);
     setCurrentFileName(file.name);
+    setPendingBackup(null);
 
     try {
+      if (file.name.toLowerCase().endsWith('.json')) {
+        const backup = parseWorldBackup(JSON.parse(await file.text()));
+        if (backup) {
+          setPendingBackup(backup);
+          return;
+        }
+      }
+
       const drafts = await parseDocumentFile(file, activeRole);
       if (drafts.length === 0) {
         throw new Error('No readable text or entities could be parsed from this file.');
@@ -102,6 +128,22 @@ export default function DocumentImportModal({
     );
   };
 
+  // Run a world-changing action; close on success, stay open with the error on failure
+  const runAction = async (action: () => Promise<boolean>) => {
+    setIsWorking(true);
+    setActionError(null);
+    try {
+      if (await action()) {
+        handleReset();
+        onClose();
+      }
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Something went wrong. Your world was not changed.');
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
   // Commit Import
   const handleConfirmImport = () => {
     const selectedDrafts = parsedDrafts.filter((d) => d.selected);
@@ -117,13 +159,12 @@ export default function DocumentImportModal({
       content: draft.contentHtml,
       tags: draft.tags,
       properties: draft.properties,
+      ...(draft.coverImage ? { coverImage: draft.coverImage } : {}),
       isPinned: false,
       last_updated: Date.now() + idx,
     }));
 
-    onImportArticles(newArticles, importMode);
-    handleReset();
-    onClose();
+    runAction(() => onImportArticles(newArticles, importMode));
   };
 
   const handleReset = () => {
@@ -132,22 +173,16 @@ export default function DocumentImportModal({
     setParseError(null);
     setExpandedPreviewId(null);
     setSearchFilter('');
+    setPendingBackup(null);
+    setActionError(null);
   };
 
-  // Export JSON backup
-  const handleExportJSON = () => {
-    const dataStr =
-      'data:text/json;charset=utf-8,' +
-      encodeURIComponent(JSON.stringify(articles, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute(
-      'download',
-      `gaea-forge-backup-${new Date().toISOString().slice(0, 10)}.json`
-    );
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  // Review only the articles of a full backup, to merge them into the current world
+  const handleMergeBackupArticles = () => {
+    if (!pendingBackup) return;
+    setParsedDrafts(articlesToDrafts(pendingBackup.articles, activeRole));
+    setImportMode('merge');
+    setPendingBackup(null);
   };
 
   const selectedCount = parsedDrafts.filter((d) => d.selected).length;
@@ -199,7 +234,7 @@ export default function DocumentImportModal({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Export JSON
+              Backup & Restore
             </button>
           </div>
         </div>
@@ -216,14 +251,89 @@ export default function DocumentImportModal({
                 <div>
                   <h3 className="text-lg font-bold text-white">Full World Backup</h3>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                    Export all {articles.length} lore articles, metadata properties, and custom tags into a single portable `.json` backup file.
+                    Export all {articleCount} lore articles (with tags, properties and artwork), {canvasCount} canvases and your workspace role into a single portable `.json` file. Restore it from the Document Import tab.
                   </p>
                 </div>
                 <button
-                  onClick={handleExportJSON}
+                  onClick={onExportBackup}
                   className="px-6 py-2.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl shadow-lg shadow-gold/20 text-xs transition-all"
                 >
-                  Download .json Backup ({articles.length} Articles)
+                  Download .json Backup
+                </button>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Safety Snapshots</h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Gaea-Forge saves a copy of your world before any import or restore that replaces it. The last 5 are kept on this device.
+                  </p>
+                </div>
+                {snapshots.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic">No snapshots yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {snapshots.map((snap) => (
+                      <li
+                        key={snap.id}
+                        className="flex items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-slate-200 font-semibold truncate">{snap.reason}</div>
+                          <div className="text-slate-500">
+                            {new Date(snap.createdAt).toLocaleString()} · {snap.articleCount} articles · {snap.canvasCount} canvases
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => runAction(() => onRestoreSnapshot(snap))}
+                          disabled={isWorking}
+                          className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-gold rounded-lg font-semibold shrink-0 disabled:opacity-40 transition-colors"
+                        >
+                          Restore
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          ) : pendingBackup ? (
+            /* FULL BACKUP RESTORE VIEW */
+            <div className="space-y-6 max-w-xl mx-auto py-6">
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">Gaea-Forge World Backup</h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    <strong className="text-slate-200">{currentFileName}</strong>, exported{' '}
+                    {new Date(pendingBackup.exportedAt).toLocaleString()}
+                  </p>
+                </div>
+                <ul className="text-xs text-slate-300 space-y-1">
+                  <li>{pendingBackup.articles.length} articles</li>
+                  <li>{pendingBackup.canvases.length} canvases</li>
+                  {pendingBackup.roleId && <li>Workspace: {ROLES[pendingBackup.roleId].title}</li>}
+                </ul>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => runAction(() => onRestoreBackup(pendingBackup))}
+                    disabled={isWorking}
+                    className="flex-1 px-4 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl text-xs disabled:opacity-40 transition-all"
+                  >
+                    Restore Backup (replaces current world)
+                  </button>
+                  <button
+                    onClick={handleMergeBackupArticles}
+                    disabled={isWorking}
+                    className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold disabled:opacity-40 transition-colors"
+                  >
+                    Review & Merge Articles Only
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  A safety snapshot of your current world is saved before restoring.
+                </p>
+                <button onClick={handleReset} className="text-xs text-slate-400 hover:text-white underline">
+                  Choose a different file
                 </button>
               </div>
             </div>
@@ -521,13 +631,21 @@ export default function DocumentImportModal({
             Close
           </button>
 
+          {actionError && (
+            <span className="text-xs text-red-300 mx-3 flex-1 text-right">⚠️ {actionError}</span>
+          )}
+
           {activeTab === 'import' && parsedDrafts.length > 0 && (
             <button
               onClick={handleConfirmImport}
-              disabled={selectedCount === 0}
+              disabled={selectedCount === 0 || isWorking}
               className="px-6 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl shadow-lg shadow-gold/20 text-xs disabled:opacity-40 transition-all flex items-center gap-1.5"
             >
-              <span>Import {selectedCount} Articles</span>
+              <span>
+                {importMode === 'replace'
+                  ? `Replace World with ${selectedCount} Articles`
+                  : `Import ${selectedCount} Articles`}
+              </span>
             </button>
           )}
         </div>

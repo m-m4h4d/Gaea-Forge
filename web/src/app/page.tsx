@@ -18,6 +18,7 @@ import {
   CanvasData,
   CanvasType,
   GaeaDatabase,
+  WorldSnapshot,
 } from '@/lib/database';
 import {
   ROLES,
@@ -26,6 +27,20 @@ import {
   applyRoleTheme,
   hasCompletedOnboarding,
 } from '@/lib/roles';
+import {
+  WorldBackup,
+  createBackup,
+  createSnapshot,
+  downloadBackup,
+  listSnapshots,
+  pruneCanvasesToArticles,
+  readWorld,
+  replaceWorld,
+  snapshotToBackup,
+  upsertArticles,
+  upsertCanvases,
+} from '@/lib/backup';
+import { useArticleSaver } from '@/lib/useArticleSaver';
 
 export default function Home() {
   const [db, setDb] = useState<GaeaDatabase | null>(null);
@@ -59,18 +74,8 @@ export default function Home() {
   // View Mode: 'editor' | 'canvas'
   const [activeViewMode, setActiveViewMode] = useState<'editor' | 'canvas'>('editor');
 
-  // Canvases State
-  const [canvases, setCanvases] = useState<CanvasData[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const local = localStorage.getItem('gaea_canvases_v3');
-        if (local) return JSON.parse(local);
-      } catch {
-        // ignore
-      }
-    }
-    return INITIAL_SEED_CANVASES;
-  });
+  // Canvases State (seed shown until RxDB loads)
+  const [canvases, setCanvases] = useState<CanvasData[]>(INITIAL_SEED_CANVASES);
   const [activeCanvasId, setActiveCanvasId] = useState<string>('canvas-master-web');
   
   // Modals state
@@ -82,8 +87,8 @@ export default function Home() {
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
-  const [isSavedToast, setIsSavedToast] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [snapshots, setSnapshots] = useState<WorldSnapshot[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [showAddTagInput, setShowAddTagInput] = useState(false);
   
@@ -93,6 +98,14 @@ export default function Home() {
   const [newPropValue, setNewPropValue] = useState('');
 
   const [, startTransition] = useTransition();
+
+  const saver = useArticleSaver(db);
+  const { mergeWithPending } = saver;
+
+  const showNotice = useCallback((kind: 'success' | 'error', text: string) => {
+    setNotice({ kind, text });
+    setTimeout(() => setNotice((current) => (current?.text === text ? null : current)), kind === 'error' ? 6000 : 2500);
+  }, []);
 
   // Responsive screen size listener to auto-adjust sidebars
   useEffect(() => {
@@ -112,39 +125,43 @@ export default function Home() {
   // Initialize RxDB
   useEffect(() => {
     let isMounted = true;
-    let subscription: { unsubscribe: () => void } | null = null;
+    const subscriptions: { unsubscribe: () => void }[] = [];
 
     getDatabase()
       .then((database) => {
         if (!isMounted) return;
         setDb(database);
 
-        database.articles
-          .find()
-          .exec()
-          .then((docs) => {
-            if (isMounted && docs.length > 0) {
+        subscriptions.push(
+          database.articles.find().$.subscribe((docs) => {
+            if (isMounted && docs) {
               const items = docs.map((doc) => doc.toJSON() as LoreArticle);
-              setArticles(items);
+              setArticles(mergeWithPending(items));
             }
-          });
+          })
+        );
 
-        subscription = database.articles.find().$.subscribe((docs) => {
-          if (isMounted && docs) {
-            const items = docs.map((doc) => doc.toJSON() as LoreArticle);
-            setArticles(items);
-          }
-        });
+        subscriptions.push(
+          database.canvases.find().$.subscribe((docs) => {
+            // Skip the transient empty state while a world is being replaced
+            if (isMounted && docs && docs.length > 0) {
+              setCanvases(docs.map((doc) => doc.toJSON() as CanvasData));
+            }
+          })
+        );
       })
       .catch((err) => {
-        console.warn('RxDB fallback mode active:', err);
+        console.error('Failed to open the local database:', err);
+        if (isMounted) {
+          showNotice('error', 'Could not open the local database. Changes will not be saved.');
+        }
       });
 
     return () => {
       isMounted = false;
-      if (subscription) subscription.unsubscribe();
+      subscriptions.forEach((s) => s.unsubscribe());
     };
-  }, []);
+  }, [mergeWithPending, showNotice]);
 
   // Apply active role theme when role changes
   useEffect(() => {
@@ -180,13 +197,20 @@ export default function Home() {
     }
   };
 
-  // Save Canvases to LocalStorage
-  const saveCanvases = (updatedCanvases: CanvasData[]) => {
-    setCanvases(updatedCanvases);
+  // Persist changed canvases to RxDB (state updates first so the UI stays instant)
+  const persistCanvases = async (changed: CanvasData[]) => {
+    if (changed.length === 0) return;
+    const byId = new Map(changed.map((c) => [c.id, c]));
+    setCanvases((prev) => [
+      ...changed.filter((c) => !prev.some((p) => p.id === c.id)),
+      ...prev.map((c) => byId.get(c.id) ?? c),
+    ]);
+    if (!db) return;
     try {
-      localStorage.setItem('gaea_canvases_v3', JSON.stringify(updatedCanvases));
-    } catch {
-      // ignore
+      await upsertCanvases(db, changed);
+    } catch (e) {
+      console.error('Error saving canvases:', e);
+      showNotice('error', 'Could not save canvas changes.');
     }
   };
 
@@ -196,40 +220,28 @@ export default function Home() {
   // Current active canvas document
   const activeCanvas = canvases.find((c) => c.id === activeCanvasId) || canvases[0];
 
-  // Helper to persist updated article to state and RxDB
+  // Update an article in state immediately; the database write is debounced
+  const { queue: queueArticleSave } = saver;
   const updateArticle = useCallback(
-    async (updated: LoreArticle) => {
+    (updated: LoreArticle) => {
       const itemToSave: LoreArticle = {
         ...updated,
         last_updated: Date.now(),
       };
-      setIsSaving(true);
-      
+
       startTransition(() => {
         setArticles((prev) =>
           prev.map((art) => (art.id === itemToSave.id ? itemToSave : art))
         );
       });
-
-      if (db) {
-        try {
-          await db.articles.upsert(itemToSave);
-        } catch (e) {
-          console.error('Error saving to RxDB:', e);
-        }
-      }
-      
-      setIsSaving(false);
-      setIsSavedToast(true);
-      setTimeout(() => setIsSavedToast(false), 2000);
+      queueArticleSave(itemToSave);
     },
-    [db]
+    [queueArticleSave]
   );
 
   // Helper to save current active canvas changes
   const handleActiveCanvasChange = (updatedCanvas: CanvasData) => {
-    const updated = canvases.map((c) => (c.id === updatedCanvas.id ? updatedCanvas : c));
-    saveCanvases(updated);
+    persistCanvases([{ ...updatedCanvas, last_updated: Date.now() }]);
   };
 
   // Create canvas handler
@@ -243,8 +255,7 @@ export default function Home() {
       last_updated: Date.now(),
     };
 
-    const updated = [newCanvas, ...canvases];
-    saveCanvases(updated);
+    persistCanvases([newCanvas]);
     setActiveCanvasId(newCanvas.id);
     setActiveViewMode('canvas');
   };
@@ -267,10 +278,20 @@ export default function Home() {
     if (!confirmDelete) return;
 
     const remaining = canvases.filter((c) => c.id !== canvasIdToDelete);
-    saveCanvases(remaining);
+    setCanvases(remaining);
 
     if (activeCanvasId === canvasIdToDelete) {
       setActiveCanvasId(remaining[0].id);
+    }
+
+    if (db) {
+      db.canvases
+        .findOne(canvasIdToDelete)
+        .remove()
+        .catch((e) => {
+          console.error('Failed to delete canvas:', e);
+          showNotice('error', 'Could not delete the canvas.');
+        });
     }
   };
 
@@ -316,6 +337,7 @@ export default function Home() {
         await db.articles.insert(newDoc);
       } catch (e) {
         console.error('Failed to insert new doc to RxDB:', e);
+        showNotice('error', `Could not save "${data.title}".`);
       }
     }
   };
@@ -331,19 +353,28 @@ export default function Home() {
     const targetId = activeArticle.id;
     const remaining = articles.filter((a) => a.id !== targetId);
     setArticles(remaining);
+    saver.discard([targetId]);
 
     if (remaining.length > 0) {
       setActiveArticleId(remaining[0].id);
     }
 
+    // Remove the article's nodes and their connections from every canvas
+    const prunedCanvases = pruneCanvasesToArticles(
+      canvases,
+      new Set(remaining.map((a) => a.id))
+    );
+
     if (db) {
       try {
-        const doc = await db.articles.findOne(targetId).exec();
-        if (doc) await doc.remove();
+        await db.articles.findOne(targetId).remove();
       } catch (e) {
         console.error('Failed to delete doc from RxDB:', e);
+        showNotice('error', `Could not delete "${activeArticle.title}".`);
+        return;
       }
     }
+    await persistCanvases(prunedCanvases);
   };
 
   // Toggle Pinned status
@@ -447,47 +478,119 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  // Refresh the snapshot list whenever the import/backup modal opens
+  useEffect(() => {
+    if (!isExportModalOpen || !db) return;
+    listSnapshots(db)
+      .then(setSnapshots)
+      .catch((e) => console.error('Failed to list snapshots:', e));
+  }, [isExportModalOpen, db]);
+
+  const handleExportBackup = async () => {
+    // Write pending edits first so the backup matches what is on screen
+    await saver.flush();
+    try {
+      const world = db ? await readWorld(db) : { articles, canvases };
+      downloadBackup(createBackup(world.articles, world.canvases, currentRoleId));
+    } catch (e) {
+      console.error('Backup export failed:', e);
+      showNotice('error', 'Could not export the backup.');
+    }
+  };
+
+  // Snapshot the current world, then replace it entirely. Returns false if cancelled.
+  const replaceWorldSafely = async (
+    confirmText: string,
+    snapshotReason: string,
+    nextArticles: LoreArticle[],
+    nextCanvases: CanvasData[]
+  ): Promise<boolean> => {
+    if (!window.confirm(confirmText)) return false;
+    if (!db) throw new Error('The local database is not available, so nothing was changed.');
+
+    await saver.flush();
+    try {
+      await createSnapshot(db, snapshotReason, currentRoleId);
+    } catch (e) {
+      console.error('Snapshot failed:', e);
+      throw new Error('Could not save a safety snapshot, so your world was not changed.');
+    }
+
+    saver.discard(articles.map((a) => a.id));
+    try {
+      await replaceWorld(db, nextArticles, nextCanvases);
+    } catch (e) {
+      console.error('Replace failed:', e);
+      throw new Error(
+        'Replacing the world failed partway. Restore the latest snapshot from Backup & Restore.'
+      );
+    }
+
+    if (nextArticles.length > 0) setActiveArticleId(nextArticles[0].id);
+    if (nextCanvases.length > 0) setActiveCanvasId(nextCanvases[0].id);
+    return true;
+  };
+
   // Intelligent Multi-Format Import Handler
   const handleImportArticles = async (
     importedList: LoreArticle[],
     mode: 'merge' | 'replace' = 'merge'
-  ) => {
+  ): Promise<boolean> => {
     if (mode === 'replace') {
-      setArticles(importedList);
-      if (importedList.length > 0) {
-        setActiveArticleId(importedList[0].id);
-      }
-      if (db) {
-        try {
-          const allDocs = await db.articles.find().exec();
-          await Promise.all(allDocs.map((doc) => doc.remove()));
-          await db.articles.bulkInsert(importedList);
-        } catch (e) {
-          console.warn('RxDB replace notice:', e);
-        }
-      }
-    } else {
+      // Keep canvases, minus nodes for articles that no longer exist
       const importedIds = new Set(importedList.map((a) => a.id));
-      const merged = [
-        ...importedList,
-        ...articles.filter((a) => !importedIds.has(a.id)),
-      ];
+      const pruned = new Map(
+        pruneCanvasesToArticles(canvases, importedIds).map((c) => [c.id, c])
+      );
+      const nextCanvases = canvases.map((c) => pruned.get(c.id) ?? c);
 
-      setArticles(merged);
+      const done = await replaceWorldSafely(
+        `Replace your current world (${articles.length} articles) with ${importedList.length} imported articles?\n\nA safety snapshot will be saved first, so you can undo this from Backup & Restore.`,
+        `Before replacing world with ${importedList.length} imported articles`,
+        importedList,
+        nextCanvases
+      );
+      if (!done) return false;
+    } else {
+      if (!db) throw new Error('The local database is not available, so nothing was imported.');
+      // Imported versions win over unsaved edits to the same articles
+      saver.discard(importedList.map((a) => a.id));
+      await upsertArticles(db, importedList);
       if (importedList.length > 0) {
         setActiveArticleId(importedList[0].id);
-      }
-      if (db) {
-        try {
-          await db.articles.bulkUpsert(importedList);
-        } catch (e) {
-          console.warn('RxDB bulkUpsert notice:', e);
-        }
       }
     }
-    setIsSavedToast(true);
-    setTimeout(() => setIsSavedToast(false), 2500);
+
+    showNotice('success', `Imported ${importedList.length} articles.`);
+    return true;
   };
+
+  const restoreBackup = async (backup: WorldBackup, confirmText: string, snapshotReason: string) => {
+    const nextCanvases = backup.canvases.length > 0 ? backup.canvases : INITIAL_SEED_CANVASES;
+    const done = await replaceWorldSafely(confirmText, snapshotReason, backup.articles, nextCanvases);
+    if (!done) return false;
+
+    if (backup.roleId) {
+      setCurrentRoleId(backup.roleId);
+      setExpandedCategories(new Set(ROLES[backup.roleId].categories));
+    }
+    showNotice('success', `Restored ${backup.articles.length} articles and ${nextCanvases.length} canvases.`);
+    return true;
+  };
+
+  const handleRestoreBackup = (backup: WorldBackup) =>
+    restoreBackup(
+      backup,
+      `Restore this backup (${backup.articles.length} articles, ${backup.canvases.length} canvases)? It replaces your current world.\n\nA safety snapshot will be saved first.`,
+      `Before restoring backup from ${new Date(backup.exportedAt).toLocaleString()}`
+    );
+
+  const handleRestoreSnapshot = (snapshot: WorldSnapshot) =>
+    restoreBackup(
+      snapshotToBackup(snapshot),
+      `Restore the snapshot "${snapshot.reason}"? It replaces your current world.\n\nA new safety snapshot of the current world will be saved first.`,
+      `Before restoring snapshot from ${new Date(snapshot.createdAt).toLocaleString()}`
+    );
 
   // Filter articles based on search, tag
   const filteredArticles = articles.filter((art) => {
@@ -821,7 +924,7 @@ export default function Home() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span>{activeCanvas.type === 'world-web' ? '🌐' : '🌳'}</span> <span className="hidden sm:inline">Canvas: {activeCanvas.title}</span><span className="sm:hidden">Canvas</span>
+                <span>{activeCanvas?.type === 'family-tree' ? '🌳' : '🌐'}</span> <span className="hidden sm:inline">Canvas: {activeCanvas?.title}</span><span className="sm:hidden">Canvas</span>
               </button>
             </div>
 
@@ -855,12 +958,20 @@ export default function Home() {
 
             {/* Auto-save status */}
             <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5">
-              {isSaving ? (
+              {saver.status === 'error' ? (
+                <button
+                  onClick={() => saver.flush()}
+                  className="text-red-400 font-medium hover:underline"
+                  title={saver.error ?? undefined}
+                >
+                  Save failed, retry
+                </button>
+              ) : saver.status === 'saving' ? (
                 <span className="text-amber-400 animate-pulse">Saving...</span>
-              ) : isSavedToast ? (
-                <span className="text-emerald-400 font-medium">Saved ✓</span>
+              ) : saver.status === 'pending' ? (
+                <span className="text-slate-400">Unsaved changes</span>
               ) : (
-                <span className="text-slate-500">Auto-saved</span>
+                <span className="text-slate-500">All changes saved</span>
               )}
             </div>
 
@@ -892,13 +1003,6 @@ export default function Home() {
                   📌 <span className="hidden sm:inline">{activeArticle?.isPinned ? 'Pinned' : 'Pin'}</span>
                 </button>
 
-                {/* Manual Save Button */}
-                <button
-                  onClick={() => activeArticle && updateArticle(activeArticle)}
-                  className="px-3 sm:px-4 py-1.5 bg-gold text-slate-950 rounded-lg font-bold text-xs hover:bg-gold-hover transition-colors shadow-md shadow-gold/20"
-                >
-                  Save
-                </button>
               </>
             )}
 
@@ -1226,11 +1330,30 @@ export default function Home() {
       <DocumentImportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        articles={articles}
+        articleCount={articles.length}
+        canvasCount={canvases.length}
         activeRole={currentRoleId}
         categories={displayCategories}
+        snapshots={snapshots}
         onImportArticles={handleImportArticles}
+        onRestoreBackup={handleRestoreBackup}
+        onRestoreSnapshot={handleRestoreSnapshot}
+        onExportBackup={handleExportBackup}
       />
+
+      {/* Notices (import results, save errors) */}
+      {notice && (
+        <div
+          role="status"
+          className={`fixed bottom-4 right-4 z-[60] max-w-sm px-4 py-2.5 rounded-xl border text-xs shadow-2xl ${
+            notice.kind === 'error'
+              ? 'bg-red-950/95 border-red-800 text-red-200'
+              : 'bg-slate-900/95 border-emerald-800 text-emerald-300'
+          }`}
+        >
+          {notice.text}
+        </div>
+      )}
 
       <OnboardingModal
         isOpen={isOnboardingOpen}

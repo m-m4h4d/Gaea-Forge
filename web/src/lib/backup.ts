@@ -194,6 +194,55 @@ export function pruneCanvasesToArticles(
   return changed;
 }
 
+// Undo for pruneCanvasesToArticles: put an article's nodes (and map pins), their
+// connections and its timeline links back into the *current* canvases, so edits
+// made since the deletion are kept. `before` is the canvases as they were before it.
+// Returns only the canvases that changed.
+export function restoreArticleLinks(current: CanvasData[], before: CanvasData[], articleId: string): CanvasData[] {
+  const changed: CanvasData[] = [];
+
+  for (const canvas of current) {
+    const old = before.find((c) => c.id === canvas.id);
+    if (!old) continue;
+
+    const nodeIds = new Set(canvas.nodes.map((n) => n.id));
+    const restoredNodes = old.nodes.filter((n) => n.articleId === articleId && !nodeIds.has(n.id));
+    const nodesAfter = [...canvas.nodes, ...restoredNodes];
+    const allIds = new Set(nodesAfter.map((n) => n.id));
+    const restoredIds = new Set(restoredNodes.map((n) => n.id));
+    const connectionIds = new Set(canvas.connections.map((c) => c.id));
+    const restoredConnections = old.connections.filter(
+      (c) =>
+        !connectionIds.has(c.id) &&
+        (restoredIds.has(c.fromNodeId) || restoredIds.has(c.toNodeId)) &&
+        allIds.has(c.fromNodeId) &&
+        allIds.has(c.toNodeId)
+    );
+
+    // Events that pointed at the article and are now unlinked get their link back
+    const relinkIds = new Set(
+      (old.events ?? []).filter((e) => e.articleId === articleId).map((e) => e.id)
+    );
+    let relinked = false;
+    const events = canvas.events?.map((e) => {
+      if (!relinkIds.has(e.id) || e.articleId) return e;
+      relinked = true;
+      return { ...e, articleId };
+    });
+
+    if (restoredNodes.length === 0 && restoredConnections.length === 0 && !relinked) continue;
+    changed.push({
+      ...canvas,
+      nodes: nodesAfter,
+      connections: [...canvas.connections, ...restoredConnections],
+      ...(events && { events }),
+      last_updated: Date.now(),
+    });
+  }
+
+  return changed;
+}
+
 // RxDB bulk operations report per-document failures instead of throwing
 function assertBulkOk(result: { error: unknown[] }, action: string) {
   if (result.error.length > 0) {

@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { createArticle, expect, openApp, openBackupTab, openImportTab, test } from './fixtures';
+import { createArticle, expect, openApp, openBackupTab, openImportTab, test, confirmDialog } from './fixtures';
 
 async function exportBackup(page: import('@playwright/test').Page, path: string) {
   await openBackupTab(page);
@@ -56,12 +56,14 @@ test('a replace import can be undone from its safety snapshot', async ({ page },
   await page.locator('input[type=file][accept*=".pdf"]').setInputFiles(md);
   await page.getByText('Replace current world').click();
   await page.getByRole('button', { name: 'Replace World with 2 Articles' }).click();
+  await confirmDialog(page, 'Replace World');
   await expect(page.getByText('Imported 2 articles.')).toBeVisible();
   await expect(page.getByText('Survivor Keep')).toHaveCount(0);
 
   await openBackupTab(page);
   await expect(page.getByText(/Before replacing world with 2 imported articles/)).toBeVisible();
   await page.getByRole('button', { name: 'Restore', exact: true }).first().click();
+  await confirmDialog(page, 'Restore Snapshot');
   await expect(page.getByText(/Restored 2 articles and 2 canvases/)).toBeVisible();
   await expect(page.getByText('Survivor Keep').first()).toBeVisible();
   await expect(page.getByText('Alpha Hero')).toHaveCount(0);
@@ -75,12 +77,13 @@ test('a backup file restores the whole world', async ({ page }, testInfo) => {
 
   await page.getByText('Survivor Keep').first().click();
   await page.getByTitle('Delete this article').click();
-  await expect(page.getByText('Survivor Keep')).toHaveCount(0);
+  await expect(page.locator('aside').first().getByText('Survivor Keep')).toHaveCount(0);
 
   await openImportTab(page);
   await page.locator('input[type=file][accept*=".pdf"]').setInputFiles(backupPath);
   await expect(page.getByText('Gaea-Forge World Backup')).toBeVisible();
   await page.getByRole('button', { name: /Restore Backup/ }).click();
+  await confirmDialog(page, 'Restore Backup');
   await expect(page.getByText(/Restored 2 articles/)).toBeVisible();
 
   await page.reload();

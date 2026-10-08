@@ -108,7 +108,7 @@ export default function Sidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search title, lore, tags..."
+                placeholder="Search lore, tags… (Ctrl+K to jump)"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-parchment placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
               />
               <Search size={13} className="absolute left-2.5 top-2 text-slate-500" aria-hidden />

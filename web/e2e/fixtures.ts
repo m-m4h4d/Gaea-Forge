@@ -1,13 +1,17 @@
 import { writeFile } from 'node:fs/promises';
 import { test as base, expect, Page } from '@playwright/test';
 
-// Every test starts with a fresh browser profile (empty IndexedDB), onboarding
-// skipped, and confirm dialogs accepted.
+// Every test starts with a fresh browser profile (empty IndexedDB) with onboarding
+// skipped, and fails on uncaught page errors or native browser dialogs.
 export const test = base.extend<{ page: Page }>({
   page: async ({ page }, provide) => {
     await page.addInitScript(() => localStorage.setItem('gaea_onboarding_completed', 'true'));
-    page.on('dialog', (dialog) => dialog.accept());
     const errors: string[] = [];
+    // The app uses its own dialogs; a native alert/confirm is a regression
+    page.on('dialog', (dialog) => {
+      errors.push(`unexpected native dialog: ${dialog.message()}`);
+      dialog.dismiss();
+    });
     page.on('pageerror', (err) => errors.push(err.message));
     await provide(page);
     expect(errors, 'uncaught page errors').toEqual([]);
@@ -80,3 +84,10 @@ export async function makeImage(page: import('@playwright/test').Page, path: str
   await writeFile(path, Buffer.from(dataUrl.split(',')[1], 'base64'));
 }
 
+
+// Answer the app's confirmation dialog by clicking its confirm button
+export async function confirmDialog(page: Page, confirmLabel: string) {
+  const dialog = page.getByRole('alertdialog');
+  await dialog.getByRole('button', { name: confirmLabel, exact: true }).click();
+  await expect(dialog).toBeHidden();
+}

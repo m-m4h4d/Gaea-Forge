@@ -2,20 +2,27 @@
 
 import { useCallback, useState } from 'react';
 
-export type Notice = { kind: 'success' | 'error'; text: string };
-export type Notify = (kind: Notice['kind'], text: string) => void;
+export type NoticeAction = { label: string; onClick: () => void };
+export type Notice = { kind: 'success' | 'error'; text: string; action?: NoticeAction };
+export type Notify = (kind: Notice['kind'], text: string, action?: NoticeAction) => void;
 
-// A single transient message; errors stay up longer than successes
+// How long a notice stays up: errors and notices offering an action (Undo) stay longer
+const DURATION_MS = { success: 2500, error: 6000, action: 8000 };
+
+// A single transient message, optionally with one action button
 export function useNotice() {
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  const showNotice = useCallback<Notify>((kind, text) => {
-    setNotice({ kind, text });
+  const showNotice = useCallback<Notify>((kind, text, action) => {
+    const next: Notice = { kind, text, action };
+    setNotice(next);
     setTimeout(
-      () => setNotice((current) => (current?.text === text ? null : current)),
-      kind === 'error' ? 6000 : 2500
+      () => setNotice((current) => (current === next ? null : current)),
+      action ? DURATION_MS.action : DURATION_MS[kind]
     );
   }, []);
 
-  return { notice, showNotice };
+  const dismissNotice = useCallback(() => setNotice(null), []);
+
+  return { notice, showNotice, dismissNotice };
 }

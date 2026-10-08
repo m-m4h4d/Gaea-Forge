@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import {
   CanvasData,
   CanvasType,
@@ -18,6 +18,7 @@ import {
   downloadBackup,
   listSnapshots,
   pruneCanvasesToArticles,
+  restoreArticleLinks,
   readWorld,
   replaceWorld,
   upsertArticles,
@@ -43,6 +44,12 @@ export function useWorld(notify: Notify) {
   const { mergeWithPending } = saver;
 
   const canvasSaver = useCanvasSaver(db, (message) => notify('error', message));
+
+  // Undo callbacks run after later renders, so they read the latest canvases here
+  const canvasesRef = useRef(canvases);
+  useEffect(() => {
+    canvasesRef.current = canvases;
+  });
   const { mergeWithPending: mergeCanvasesWithPending } = canvasSaver;
 
   useEffect(() => {
@@ -107,9 +114,11 @@ export function useWorld(notify: Notify) {
     }
   };
 
-  // Delete an article and remove its nodes and their connections from every canvas
-  const deleteArticle = async (id: string) => {
+  // Delete an article and remove its nodes and their connections from every canvas.
+  // Returns an undo function, or null if nothing was deleted.
+  const deleteArticle = async (id: string): Promise<(() => void) | null> => {
     const target = articles.find((a) => a.id === id);
+    const canvasesBefore = canvases;
     const remaining = articles.filter((a) => a.id !== id);
     setArticles(remaining);
     saver.discard([id]);
@@ -122,10 +131,27 @@ export function useWorld(notify: Notify) {
       } catch (e) {
         console.error('Failed to delete article:', e);
         notify('error', `Could not delete "${target?.title ?? id}".`);
-        return;
+        return null;
       }
     }
     await saveCanvases(prunedCanvases);
+    return target ? () => restoreDeletedArticle(target, canvasesBefore) : null;
+  };
+
+  // Undo a deletion: bring the article back, and its canvas nodes and timeline
+  // links, merged into the canvases as they are now
+  const restoreDeletedArticle = async (article: LoreArticle, canvasesBefore: CanvasData[]) => {
+    setArticles((prev) => (prev.some((a) => a.id === article.id) ? prev : [article, ...prev]));
+    if (db) {
+      try {
+        await db.articles.upsert(article);
+      } catch (e) {
+        console.error('Failed to restore article:', e);
+        notify('error', `Could not restore "${article.title}".`);
+        return;
+      }
+    }
+    await saveCanvases(restoreArticleLinks(canvasesRef.current, canvasesBefore, article.id));
   };
 
   // ---- Images ----
@@ -175,9 +201,12 @@ export function useWorld(notify: Notify) {
     return canvas;
   };
 
-  const deleteCanvas = (id: string) => {
+  // Returns an undo function that brings the canvas back
+  const deleteCanvas = (id: string): (() => void) | null => {
+    const canvas = canvases.find((c) => c.id === id);
     setCanvases((prev) => prev.filter((c) => c.id !== id));
     canvasSaver.remove(id);
+    return canvas ? () => saveCanvases([{ ...canvas, last_updated: Date.now() }]) : null;
   };
 
   // ---- Backup, import and restore ----

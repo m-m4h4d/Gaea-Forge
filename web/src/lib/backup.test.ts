@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { CanvasData, LoreArticle } from './database';
-import { BACKUP_FORMAT, createBackup, parseWorldBackup, pruneCanvasesToArticles } from './backup';
+import { BACKUP_FORMAT, createBackup, parseWorldBackup, pruneCanvasesToArticles, restoreArticleLinks } from './backup';
 
 const article: LoreArticle = {
   id: 'a1',
@@ -157,6 +157,48 @@ describe('timeline and map canvases', () => {
 
   it('leaves canvases alone when all their links still exist', () => {
     expect(pruneCanvasesToArticles([timeline, map], new Set(['a1', 'gone']))).toEqual([]);
+  });
+});
+
+describe('restoreArticleLinks', () => {
+  it('undoes pruning: nodes, their connections and timeline links come back', () => {
+    const timeline: CanvasData = {
+      id: 't',
+      title: 'T',
+      type: 'timeline',
+      nodes: [],
+      connections: [],
+      events: [{ id: 'e', title: 'Crowned', year: 1, articleId: 'a1' }],
+      last_updated: 1,
+    };
+    const before = [canvas, timeline];
+    const pruned = pruneCanvasesToArticles(before, new Set(['a2']));
+    const afterDelete = before.map((c) => pruned.find((p) => p.id === c.id) ?? c);
+
+    const restored = restoreArticleLinks(afterDelete, before, 'a1');
+    const web = restored.find((c) => c.id === 'c1')!;
+    expect(web.nodes.map((n) => n.id).sort()).toEqual(['n-a1', 'n-a2', 'n-free']);
+    expect(web.connections.map((c) => c.id).sort()).toEqual(['k1', 'k2']);
+    expect(restored.find((c) => c.id === 't')!.events![0].articleId).toBe('a1');
+  });
+
+  it('keeps edits made after the deletion', () => {
+    const [pruned] = pruneCanvasesToArticles([canvas], new Set(['a2']));
+    const edited = { ...pruned, title: 'Renamed', nodes: [...pruned.nodes, { id: 'new', label: 'New', category: 'Notes', x: 5, y: 5 }] };
+    const [restored] = restoreArticleLinks([edited], [canvas], 'a1');
+    expect(restored.title).toBe('Renamed');
+    expect(restored.nodes.map((n) => n.id).sort()).toEqual(['n-a1', 'n-a2', 'n-free', 'new']);
+  });
+
+  it('does not bring back connections to nodes that were removed separately', () => {
+    const [pruned] = pruneCanvasesToArticles([canvas], new Set(['a2']));
+    const withoutFree = { ...pruned, nodes: pruned.nodes.filter((n) => n.id !== 'n-free'), connections: [] };
+    const [restored] = restoreArticleLinks([withoutFree], [canvas], 'a1');
+    expect(restored.connections.map((c) => c.id)).toEqual(['k1']);
+  });
+
+  it('returns nothing when there is nothing to restore', () => {
+    expect(restoreArticleLinks([canvas], [canvas], 'a1')).toEqual([]);
   });
 });
 

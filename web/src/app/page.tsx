@@ -14,6 +14,9 @@ import Sidebar, { ViewMode } from '@/components/Sidebar';
 import AppHeader from '@/components/AppHeader';
 import EntityInspector from '@/components/EntityInspector';
 import NoticeToast from '@/components/NoticeToast';
+import QuickSwitcher from '@/components/QuickSwitcher';
+import { ConfirmOptions, useConfirm } from '@/components/dialogs/DialogProvider';
+import { pushRecent, SwitchItem } from '@/lib/quickSwitch';
 import { CanvasType, LoreArticle, LoreCategory, WorldSnapshot } from '@/lib/database';
 import {
   ROLES,
@@ -42,7 +45,8 @@ import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue'
 import { nextColorMode } from '@/lib/colorMode';
 
 export default function Home() {
-  const { notice, showNotice } = useNotice();
+  const { notice, showNotice, dismissNotice } = useNotice();
+  const confirm = useConfirm();
   const world = useWorld(showNotice);
   const { articles, canvases } = world;
   const { mode: colorMode, setMode: setColorMode } = useColorMode();
@@ -112,15 +116,38 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isImportModalOpen]);
 
+  // Recently opened articles and canvases, most recent first (for the quick switcher)
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
+
   const openArticle = (id: string) => {
     setActiveArticleId(id);
     setActiveViewMode('editor');
+    setRecentIds((r) => pushRecent(r, id));
   };
 
   const openCanvas = (id: string) => {
     setActiveCanvasId(id);
     setActiveViewMode('canvas');
+    setRecentIds((r) => pushRecent(r, id));
   };
+
+  // Ctrl/Cmd+K opens the quick switcher from anywhere, including the editor
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsQuickSwitcherOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const quickSwitchItems: SwitchItem[] = [
+    ...articles.map((a): SwitchItem => ({ kind: 'article', id: a.id, title: a.title, detail: a.category })),
+    ...canvases.map((c): SwitchItem => ({ kind: 'canvas', id: c.id, title: c.title, detail: c.type })),
+  ];
 
   // Applies and saves the role; public/theme-init.js restores its colors on load
   const switchRole = (roleId: RoleId) => {
@@ -196,13 +223,23 @@ export default function Home() {
     return article.id;
   };
 
+  // Deletes right away and offers Undo instead of asking first
   const handleDeleteActiveArticle = async () => {
     if (!activeArticle) return;
-    if (!window.confirm(`Are you sure you want to delete "${activeArticle.title}"?`)) return;
+    const { id, title } = activeArticle;
 
-    const remaining = articles.filter((a) => a.id !== activeArticle.id);
+    const remaining = articles.filter((a) => a.id !== id);
     if (remaining.length > 0) setActiveArticleId(remaining[0].id);
-    await world.deleteArticle(activeArticle.id);
+    const undo = await world.deleteArticle(id);
+    if (undo) {
+      showNotice('success', `Deleted "${title}".`, {
+        label: 'Undo',
+        onClick: () => {
+          undo();
+          openArticle(id);
+        },
+      });
+    }
   };
 
   const handleTogglePin = () => {
@@ -223,15 +260,23 @@ export default function Home() {
     if (!canvas) return;
 
     if (canvases.length <= 1) {
-      alert('You must keep at least one canvas in your world workspace.');
+      showNotice('error', 'Keep at least one canvas in your world.');
       return;
     }
-    if (!window.confirm(`Are you sure you want to delete canvas "${canvas.title}"?`)) return;
 
     if (activeCanvasId === canvasId) {
       setActiveCanvasId(canvases.find((c) => c.id !== canvasId)!.id);
     }
-    world.deleteCanvas(canvasId);
+    const undo = world.deleteCanvas(canvasId);
+    if (undo) {
+      showNotice('success', `Deleted canvas "${canvas.title}".`, {
+        label: 'Undo',
+        onClick: () => {
+          undo();
+          openCanvas(canvasId);
+        },
+      });
+    }
   };
 
   // ---- Import, backup & restore (each returns false if the user cancelled) ----
@@ -242,9 +287,12 @@ export default function Home() {
   ): Promise<boolean> => {
     if (
       mode === 'replace' &&
-      !window.confirm(
-        `Replace your current world (${articles.length} articles) with ${imported.length} imported articles?\n\nA safety snapshot will be saved first, so you can undo this from Backup & Restore.`
-      )
+      !(await confirm({
+        title: 'Replace your world?',
+        message: `Your current ${articles.length} articles will be replaced by ${imported.length} imported articles.\n\nA safety snapshot is saved first, so you can undo this from Backup & Restore.`,
+        confirmLabel: 'Replace World',
+        tone: 'danger',
+      }))
     ) {
       return false;
     }
@@ -257,8 +305,8 @@ export default function Home() {
     return true;
   };
 
-  const restoreBackup = async (backup: WorldBackup, confirmText: string, snapshotReason: string) => {
-    if (!window.confirm(confirmText)) return false;
+  const restoreBackup = async (backup: WorldBackup, question: ConfirmOptions, snapshotReason: string) => {
+    if (!(await confirm({ ...question, tone: 'danger' }))) return false;
 
     const restoredCanvases = await world.restoreBackup(backup, snapshotReason, currentRoleId);
     if (backup.articles.length > 0) setActiveArticleId(backup.articles[0].id);
@@ -274,14 +322,22 @@ export default function Home() {
   const handleRestoreBackup = (backup: WorldBackup) =>
     restoreBackup(
       backup,
-      `Restore this backup (${backup.articles.length} articles, ${backup.canvases.length} canvases)? It replaces your current world.\n\nA safety snapshot will be saved first.`,
+      {
+        title: 'Restore this backup?',
+        message: `It has ${backup.articles.length} articles and ${backup.canvases.length} canvases, and replaces your current world.\n\nA safety snapshot of your current world is saved first.`,
+        confirmLabel: 'Restore Backup',
+      },
       `Before restoring backup from ${new Date(backup.exportedAt).toLocaleString()}`
     );
 
   const handleRestoreSnapshot = (snapshot: WorldSnapshot) =>
     restoreBackup(
       snapshotToBackup(snapshot),
-      `Restore the snapshot "${snapshot.reason}"? It replaces your current world.\n\nA new safety snapshot of the current world will be saved first.`,
+      {
+        title: 'Restore this snapshot?',
+        message: `"${snapshot.reason}" replaces your current world.\n\nA new safety snapshot of your current world is saved first.`,
+        confirmLabel: 'Restore Snapshot',
+      },
       `Before restoring snapshot from ${new Date(snapshot.createdAt).toLocaleString()}`
     );
 
@@ -444,7 +500,22 @@ export default function Home() {
         onExportBackup={() => world.exportBackup(currentRoleId)}
       />
 
-      <NoticeToast notice={notice} />
+      <NoticeToast notice={notice} onDismiss={dismissNotice} />
+
+      {isQuickSwitcherOpen && (
+        <QuickSwitcher
+          items={quickSwitchItems}
+          recentIds={recentIds}
+          onSelect={(item) => (item.kind === 'article' ? openArticle(item.id) : openCanvas(item.id))}
+          onCreateArticle={(title) => {
+            const article = createArticleDraft({ title, category: activeArticle?.category ?? displayCategories[0], tags: [] });
+            world.addArticle(article);
+            expandCategory(article.category);
+            openArticle(article.id);
+          }}
+          onClose={() => setIsQuickSwitcherOpen(false)}
+        />
+      )}
 
       <OnboardingModal
         isOpen={isOnboardingOpen}

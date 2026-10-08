@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { expect, makeImage, openApp, openBackupTab, openImportTab, test } from './fixtures';
+import { expect, makeImage, openApp, openBackupTab, openImportTab, test, confirmDialog } from './fixtures';
 
 const artwork = (page: import('@playwright/test').Page) => page.locator('aside').last().getByRole('img', { name: 'Welcome to Gaea-Forge' });
 
@@ -30,6 +30,7 @@ test('cover artwork is stored, survives reloads, and travels in backups', async 
   await openImportTab(page);
   await page.locator('input[type=file][accept*=".pdf"]').setInputFiles(backupPath);
   await page.getByRole('button', { name: /Restore Backup/ }).click();
+  await confirmDialog(page, 'Restore Backup');
   await expect(page.getByText(/Restored 1 articles/)).toBeVisible();
   await page.reload();
   await expect(artwork(page)).toBeVisible();

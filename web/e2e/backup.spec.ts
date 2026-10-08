@@ -8,7 +8,7 @@ async function exportBackup(page: import('@playwright/test').Page, path: string)
     page.getByText('Download .json Backup').click(),
   ]);
   await download.saveAs(path);
-  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
   return JSON.parse(await readFile(path, 'utf8'));
 }
 

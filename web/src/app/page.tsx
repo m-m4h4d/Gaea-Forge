@@ -19,6 +19,8 @@ import {
   getSavedRole,
   applyRoleTheme,
   hasCompletedOnboarding,
+  setOnboardingCompleted,
+  DEFAULT_ROLE_ID,
 } from '@/lib/roles';
 import { WorldBackup, snapshotToBackup } from '@/lib/backup';
 import {
@@ -31,11 +33,15 @@ import {
 import { computeBacklinks, extractLinkedArticleIds, resolveImportedWikiLinks } from '@/lib/links';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
+import { useColorMode } from '@/hooks/useColorMode';
+import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
+import { nextColorMode } from '@/lib/colorMode';
 
 export default function Home() {
   const { notice, showNotice } = useNotice();
   const world = useWorld(showNotice);
   const { articles, canvases } = world;
+  const { mode: colorMode, setMode: setColorMode } = useColorMode();
 
   // Selection & view
   const [activeArticleId, setActiveArticleId] = useState<string>('welcome-gaea-forge');
@@ -45,13 +51,15 @@ export default function Home() {
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
   // Role & Workspace Theme State
-  const [currentRoleId, setCurrentRoleId] = useState<RoleId>(() => getSavedRole());
-  const [isOnboardingOpen, setIsOnboardingOpen] = useState(() => !hasCompletedOnboarding());
-  const activeRoleConfig = ROLES[currentRoleId] || ROLES['author-bible'];
+  // Saved choices are read via useStoredValue to keep hydration consistent
+  const currentRoleId = useStoredValue(getSavedRole, DEFAULT_ROLE_ID);
+  const onboardingDone = useStoredValue(hasCompletedOnboarding, true);
+  const [isRolePickerOpen, setIsRolePickerOpen] = useState(false);
+  const isOnboardingOpen = isRolePickerOpen || !onboardingDone;
+  const activeRoleConfig = ROLES[currentRoleId] || ROLES[DEFAULT_ROLE_ID];
   const categories = activeRoleConfig.categories;
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    () => new Set(categories)
-  );
+  // Folders are open unless collapsed, whatever role the page first rendered with
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
 
   // Modals & panels
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -69,6 +77,7 @@ export default function Home() {
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
   const characterArticles = articles.filter((a) => isCharacterCategory(a.category));
   const displayCategories = mergeCategories(categories, articles);
+  const expandedCategories = new Set(displayCategories.filter((c) => !collapsedCategories.has(c)));
 
   // Links between articles
   const linkTargets = articles.map(({ id, title, category }) => ({ id, title, category }));
@@ -89,11 +98,6 @@ export default function Home() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Apply active role theme when role changes
-  useEffect(() => {
-    applyRoleTheme(currentRoleId);
-  }, [currentRoleId]);
-
   // Refresh the snapshot list whenever the import/backup modal opens
   const { loadSnapshots } = world;
   useEffect(() => {
@@ -112,14 +116,23 @@ export default function Home() {
     setActiveViewMode('canvas');
   };
 
+  // Applies and saves the role; public/theme-init.js restores its colors on load
   const switchRole = (roleId: RoleId) => {
-    setCurrentRoleId(roleId);
-    setExpandedCategories(new Set(ROLES[roleId].categories));
+    applyRoleTheme(roleId);
+    notifyStoredValueChange();
+    setCollapsedCategories(new Set());
+  };
+
+  const closeRolePicker = () => {
+    setIsRolePickerOpen(false);
+    if (!onboardingDone) {
+      setOnboardingCompleted(true);
+      notifyStoredValueChange();
+    }
   };
 
   const handleSelectRole = (newRoleId: RoleId, shouldSeedSample: boolean) => {
     switchRole(newRoleId);
-    applyRoleTheme(newRoleId);
     if (shouldSeedSample) {
       const sample = createRoleSampleArticle(newRoleId);
       world.addArticle(sample);
@@ -128,7 +141,7 @@ export default function Home() {
   };
 
   const toggleCategoryExpanded = (cat: string) => {
-    setExpandedCategories((prev) => {
+    setCollapsedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(cat)) {
         next.delete(cat);
@@ -139,6 +152,9 @@ export default function Home() {
     });
   };
 
+  const setExpandedCategories = (expanded: Set<string>) =>
+    setCollapsedCategories(new Set(displayCategories.filter((c) => !expanded.has(c))));
+
   // ---- Articles ----
 
   const handleContentChange = (newContent: string) => {
@@ -148,7 +164,12 @@ export default function Home() {
 
   // Show the folder a new article lands in
   const expandCategory = (category: string) =>
-    setExpandedCategories((prev) => (prev.has(category) ? prev : new Set(prev).add(category)));
+    setCollapsedCategories((prev) => {
+      if (!prev.has(category)) return prev;
+      const next = new Set(prev);
+      next.delete(category);
+      return next;
+    });
 
   const handleCreateArticle = (data: { title: string; category: LoreCategory; tags: string[] }) => {
     const article = createArticleDraft(data);
@@ -291,7 +312,7 @@ export default function Home() {
       />
 
       {/* MAIN CONTENT AREA: Navbar Mode Switcher & Workspace */}
-      <main className="flex-1 flex flex-col bg-[#0b1120] relative overflow-hidden min-w-0">
+      <main className="flex-1 flex flex-col bg-background relative overflow-hidden min-w-0">
         <AppHeader
           isSidebarOpen={isSidebarOpen}
           onOpenSidebar={() => setIsSidebarOpen(true)}
@@ -300,7 +321,7 @@ export default function Home() {
           activeCanvas={activeCanvas}
           activeArticle={activeArticle}
           activeRoleConfig={activeRoleConfig}
-          onOpenRolePicker={() => setIsOnboardingOpen(true)}
+          onOpenRolePicker={() => setIsRolePickerOpen(true)}
           saveStatus={world.saveStatus}
           saveError={world.saveError}
           onRetrySave={() => world.flushSaves()}
@@ -309,6 +330,8 @@ export default function Home() {
           onTogglePin={handleTogglePin}
           canDeleteCanvas={canvases.length > 1}
           onDeleteCanvas={() => handleDeleteCanvas(activeCanvas.id)}
+          colorMode={colorMode}
+          onCycleColorMode={() => setColorMode(nextColorMode(colorMode))}
         />
 
         {/* Canvas or Editor Workspace */}
@@ -398,7 +421,7 @@ export default function Home() {
 
       <OnboardingModal
         isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
+        onClose={closeRolePicker}
         onSelectRole={handleSelectRole}
         currentRoleId={currentRoleId}
       />

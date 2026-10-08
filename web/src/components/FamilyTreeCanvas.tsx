@@ -10,6 +10,7 @@ import {
 } from '@/lib/database';
 import NodeConnectModal from './NodeConnectModal';
 import { layoutFamilyTree } from '@/lib/familyTreeLayout';
+import { Lightbulb, Pencil, User, Wand2, X } from 'lucide-react';
 
 interface FamilyTreeCanvasProps {
   canvasData: CanvasData;
@@ -342,7 +343,7 @@ export default function FamilyTreeCanvas({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={handleAddFreeNode}
-            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"
+            className="px-3 py-1.5 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-lg text-xs shadow-md shadow-gold/20 flex items-center gap-1 transition-all shrink-0"
           >
             <span>+</span> Add Character Node
           </button>
@@ -352,13 +353,13 @@ export default function FamilyTreeCanvas({
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-xs border border-slate-700 transition-colors flex items-center gap-1 shrink-0"
             title="Auto-organize nodes by lineage hierarchy"
           >
-            <span>⚡</span> Auto-Arrange Tree
+            <Wand2 size={13} aria-hidden /> Auto-Arrange Tree
           </button>
         </div>
 
         {/* Status / Instructions */}
         <div className="text-xs text-slate-400 hidden lg:flex items-center gap-3 shrink-0">
-          <span>💡 <em>Drag background to Pan</em></span>
+          <span className="flex items-center gap-1"><Lightbulb size={12} aria-hidden /> <em>Drag background to Pan</em></span>
           <span>•</span>
           <span><em>Drag handles to Connect characters</em></span>
         </div>
@@ -387,7 +388,7 @@ export default function FamilyTreeCanvas({
               setZoom(1);
               setPan({ x: 0, y: 0 });
             }}
-            className="px-2 py-1 text-[10px] bg-slate-900 hover:bg-slate-800 rounded text-slate-400 font-medium"
+            className="px-2 py-1 text-[11px] bg-slate-900 hover:bg-slate-800 rounded text-slate-400 font-medium"
           >
             Reset
           </button>
@@ -420,7 +421,7 @@ export default function FamilyTreeCanvas({
                 refY="3"
                 orient="auto"
               >
-                <polygon points="0 0, 8 3, 0 6" fill="#fbbf24" />
+                <polygon points="0 0, 8 3, 0 6" className="fill-gold" />
               </marker>
             </defs>
 
@@ -446,7 +447,7 @@ export default function FamilyTreeCanvas({
               const pathString = `M ${x1} ${y1} Q ${curveX} ${curveY} ${x2} ${y2}`;
 
               // Color styles based on relationship
-              let strokeColor = '#fbbf24'; // default gold
+              let strokeColor = 'var(--accent)'; // default: theme accent
               if (conn.relationship === 'spouse') strokeColor = '#f43f5e'; // rose
               if (conn.relationship === 'sibling') strokeColor = '#38bdf8'; // sky blue
               if (conn.relationship === 'rival') strokeColor = '#ef4444'; // red
@@ -475,7 +476,7 @@ export default function FamilyTreeCanvas({
                   <path
                     d={pathString}
                     fill="none"
-                    stroke={strokeColor}
+                    style={{ stroke: strokeColor }}
                     strokeWidth="2.5"
                     strokeDasharray={conn.relationship === 'rival' ? '6,4' : 'none'}
                     markerEnd="url(#arrowhead)"
@@ -501,16 +502,15 @@ export default function FamilyTreeCanvas({
                       width="90"
                       height="22"
                       rx="11"
-                      fill="#0f172a"
-                      stroke={strokeColor}
+                      style={{ stroke: strokeColor }}
                       strokeWidth="1.5"
-                      className="shadow-lg group-hover:fill-slate-800 transition-colors"
+                      className="shadow-lg fill-slate-900 group-hover:fill-slate-800 transition-colors"
                     />
                     <text
                       x="0"
                       y="3"
                       textAnchor="middle"
-                      fill="#fef3c7"
+                      className="fill-parchment"
                       fontSize="9"
                       fontWeight="bold"
                     >
@@ -533,7 +533,7 @@ export default function FamilyTreeCanvas({
                   y1={y1}
                   x2={mousePosCanvas.x}
                   y2={mousePosCanvas.y}
-                  stroke="#fbbf24"
+                  className="stroke-gold"
                   strokeWidth="2.5"
                   strokeDasharray="4,4"
                 />
@@ -568,13 +568,13 @@ export default function FamilyTreeCanvas({
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={node.avatarUrl} alt={node.label} className="w-full h-full object-cover" />
                     ) : (
-                      <span>👤</span>
+                      <User size={14} aria-hidden />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-xs text-parchment truncate">{node.label}</h4>
-                    <p className="text-[10px] text-slate-400 truncate">{node.role || 'Character'}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{node.role || 'Character'}</p>
                   </div>
 
                   {/* Actions Dropdown / Edit */}
@@ -586,12 +586,12 @@ export default function FamilyTreeCanvas({
                     className="text-slate-500 hover:text-gold text-xs px-1 rounded"
                     title="Edit character node details"
                   >
-                    ✏️
+                    <Pencil size={12} aria-hidden />
                   </button>
                 </div>
 
                 {/* Node Bottom Quick Relatives Buttons */}
-                <div className="flex items-center justify-between border-t border-slate-800/80 pt-1 text-[9px] text-slate-400">
+                <div className="flex items-center justify-between border-t border-slate-800/80 pt-1 text-[10px] text-slate-400">
                   <div className="flex gap-1">
                     <button
                       onClick={(e) => {
@@ -623,14 +623,14 @@ export default function FamilyTreeCanvas({
                     className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Delete node"
                   >
-                    ✕
+                    <X size={12} aria-hidden />
                   </button>
                 </div>
 
                 {/* Connection Handle (Right Side Dot) */}
                 <div
                   onMouseDown={(e) => handleStartConnect(e, node.id)}
-                  className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-gold rounded-full border-2 border-slate-950 flex items-center justify-center cursor-crosshair hover:scale-125 transition-transform shadow-md shadow-gold/40 text-slate-950 text-[10px] font-bold"
+                  className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-gold rounded-full border-2 border-slate-950 flex items-center justify-center cursor-crosshair hover:scale-125 transition-transform shadow-md shadow-gold/40 text-on-accent text-[11px] font-bold"
                   title="Drag from here to connect to another character"
                 >
                   +
@@ -725,7 +725,7 @@ export default function FamilyTreeCanvas({
               </button>
               <button
                 onClick={() => handleSaveNodeEdit(editingNode)}
-                className="px-4 py-1.5 bg-gold text-slate-950 font-bold rounded text-xs"
+                className="px-4 py-1.5 bg-gold text-on-accent font-bold rounded text-xs"
               >
                 Save
               </button>

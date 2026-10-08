@@ -5,6 +5,7 @@ import { LoreArticle, WorldSnapshot } from '@/lib/database';
 import { ROLES, RoleId } from '@/lib/roles';
 import { articlesToDrafts, parseDocumentFile, ParsedEntityDraft } from '@/lib/documentParser';
 import { parseWorldBackup, WorldBackup } from '@/lib/backup';
+import { FileUp, HardDriveDownload, Inbox, SlidersHorizontal, Sparkles, TriangleAlert, X } from 'lucide-react';
 
 interface DocumentImportModalProps {
   isOpen: boolean;
@@ -204,7 +205,7 @@ export default function DocumentImportModal({
         <div className="p-5 sm:p-6 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between shrink-0">
           <div>
             <h2 className="text-xl font-bold text-gold tracking-wide flex items-center gap-2">
-              <span>📥</span> Import & Export World Data
+              <Inbox size={20} aria-hidden /> Import & Export World Data
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Intelligently parse documents (.pdf, .docx, .doc, .md, .txt) into separate organized codex articles.
@@ -220,8 +221,8 @@ export default function DocumentImportModal({
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'import'
-                  ? 'bg-gold text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-slate-800 text-gold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-50'
               }`}
             >
               Document Import
@@ -230,8 +231,8 @@ export default function DocumentImportModal({
               onClick={() => setActiveTab('export')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'export'
-                  ? 'bg-gold text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-slate-800 text-gold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-50'
               }`}
             >
               Backup & Restore
@@ -246,17 +247,17 @@ export default function DocumentImportModal({
             <div className="space-y-6 max-w-xl mx-auto py-6">
               <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6 text-center space-y-4">
                 <div className="w-16 h-16 rounded-2xl bg-gold/10 border border-gold/30 text-gold flex items-center justify-center text-3xl mx-auto">
-                  💾
+                  <HardDriveDownload size={28} aria-hidden />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">Full World Backup</h3>
+                  <h3 className="text-lg font-bold text-slate-50">Full World Backup</h3>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                     Export all {articleCount} lore articles (with tags, properties and artwork), {canvasCount} canvases and your workspace role into a single portable `.json` file. Restore it from the Document Import tab.
                   </p>
                 </div>
                 <button
                   onClick={onExportBackup}
-                  className="px-6 py-2.5 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl shadow-lg shadow-gold/20 text-xs transition-all"
+                  className="px-6 py-2.5 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-xl shadow-lg shadow-gold/20 text-xs transition-all"
                 >
                   Download .json Backup
                 </button>
@@ -264,7 +265,7 @@ export default function DocumentImportModal({
 
               <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Safety Snapshots</h3>
+                  <h3 className="text-sm font-bold text-slate-50">Safety Snapshots</h3>
                   <p className="text-xs text-slate-400 mt-1">
                     Gaea-Forge saves a copy of your world before any import or restore that replaces it. The last 5 are kept on this device.
                   </p>
@@ -302,7 +303,7 @@ export default function DocumentImportModal({
             <div className="space-y-6 max-w-xl mx-auto py-6">
               <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-6 space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Gaea-Forge World Backup</h3>
+                  <h3 className="text-lg font-bold text-slate-50">Gaea-Forge World Backup</h3>
                   <p className="text-xs text-slate-400 mt-1">
                     <strong className="text-slate-200">{currentFileName}</strong>, exported{' '}
                     {new Date(pendingBackup.exportedAt).toLocaleString()}
@@ -317,7 +318,7 @@ export default function DocumentImportModal({
                   <button
                     onClick={() => runAction(() => onRestoreBackup(pendingBackup))}
                     disabled={isWorking}
-                    className="flex-1 px-4 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl text-xs disabled:opacity-40 transition-all"
+                    className="flex-1 px-4 py-2 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-xl text-xs disabled:opacity-40 transition-all"
                   >
                     Restore Backup (replaces current world)
                   </button>
@@ -329,10 +330,10 @@ export default function DocumentImportModal({
                     Review & Merge Articles Only
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   A safety snapshot of your current world is saved before restoring.
                 </p>
-                <button onClick={handleReset} className="text-xs text-slate-400 hover:text-white underline">
+                <button onClick={handleReset} className="text-xs text-slate-400 hover:text-slate-50 underline">
                   Choose a different file
                 </button>
               </div>
@@ -363,11 +364,11 @@ export default function DocumentImportModal({
                 />
 
                 <div className="w-20 h-20 rounded-3xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-4xl shadow-inner group-hover:scale-105 group-hover:border-gold/50 transition-all">
-                  📄
+                  <FileUp size={34} aria-hidden />
                 </div>
 
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-gold transition-colors">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-50 group-hover:text-gold transition-colors">
                     Click to browse or drag & drop documents here
                   </h3>
                   <p className="text-xs text-slate-400 mt-1.5 max-w-md">
@@ -377,19 +378,19 @@ export default function DocumentImportModal({
 
                 {/* Supported Format Badges */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-red-950/60 text-red-300 border border-red-800/60">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono bg-red-950/60 text-red-300 border border-red-800/60">
                     .PDF
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-blue-950/60 text-blue-300 border border-blue-800/60">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono bg-blue-950/60 text-blue-300 border border-blue-800/60">
                     .DOCX / .DOC
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-purple-950/60 text-purple-300 border border-purple-800/60">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono bg-purple-950/60 text-purple-300 border border-purple-800/60">
                     .MD
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-800/60">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-950/60 text-emerald-300 border border-emerald-800/60">
                     .TXT
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-amber-950/60 text-amber-300 border border-amber-800/60">
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-mono bg-amber-950/60 text-amber-300 border border-amber-800/60">
                     .JSON
                   </span>
                 </div>
@@ -402,7 +403,7 @@ export default function DocumentImportModal({
                   <p className="text-xs font-semibold text-slate-200">
                     Intelligently parsing document & segmenting lore entities...
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-slate-500">
                     Detecting headings, characters, nations, bestiary entries, and attributes
                   </p>
                 </div>
@@ -411,12 +412,12 @@ export default function DocumentImportModal({
               {/* Parsing Error */}
               {parseError && (
                 <div className="p-4 bg-red-950/50 border border-red-800/80 rounded-2xl text-red-300 text-xs flex items-center justify-between">
-                  <span>⚠️ {parseError}</span>
+                  <span className="flex items-center gap-2"><TriangleAlert size={14} aria-hidden /> {parseError}</span>
                   <button
                     onClick={() => setParseError(null)}
-                    className="text-red-400 hover:text-white font-bold ml-2"
+                    className="text-red-400 hover:text-slate-50 font-bold ml-2"
                   >
-                    ✕
+                    <X size={14} aria-hidden />
                   </button>
                 </div>
               )}
@@ -424,7 +425,7 @@ export default function DocumentImportModal({
               {/* Features Explain Box */}
               <div className="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-5 space-y-3 text-xs text-slate-400">
                 <h4 className="font-semibold text-slate-300 flex items-center gap-1.5">
-                  <span>✨</span> How Gaea-Forge Intelligent Segmentation Works:
+                  <Sparkles size={14} className="text-gold" aria-hidden /> How Gaea-Forge Intelligent Segmentation Works:
                 </h4>
                 <ul className="list-disc pl-5 space-y-1.5">
                   <li>
@@ -456,7 +457,7 @@ export default function DocumentImportModal({
                       from <strong className="text-slate-200">{currentFileName}</strong>
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Select the articles you wish to import. You can customize titles and categories below.
                   </p>
                 </div>
@@ -476,7 +477,7 @@ export default function DocumentImportModal({
                   </button>
                   <button
                     onClick={handleReset}
-                    className="px-2.5 py-1 bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg text-xs transition-colors border border-slate-800"
+                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-50 rounded-lg text-xs transition-colors border border-slate-800"
                   >
                     Choose Different File
                   </button>
@@ -565,16 +566,16 @@ export default function DocumentImportModal({
 
                           {draft.properties.length > 0 && (
                             <span
-                              className="px-2 py-0.5 rounded-md text-[10px] bg-slate-800 text-slate-300 font-mono border border-slate-700"
+                              className="px-2 py-0.5 rounded-md text-[11px] bg-slate-800 text-slate-300 font-mono border border-slate-700"
                               title={draft.properties.map((p) => `${p.key}: ${p.value}`).join('\n')}
                             >
-                              ⚙ {draft.properties.length} props
+                              <SlidersHorizontal size={11} className="inline -mt-0.5" aria-hidden /> {draft.properties.length} props
                             </span>
                           )}
 
                           <button
                             onClick={() => setExpandedPreviewId(isExpanded ? null : draft.id)}
-                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs transition-colors"
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-50 rounded-lg text-xs transition-colors"
                           >
                             {isExpanded ? 'Hide Preview' : 'Preview'}
                           </button>
@@ -587,7 +588,7 @@ export default function DocumentImportModal({
                           {draft.tags.map((t) => (
                             <span
                               key={t}
-                              className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800/80 text-slate-400 border border-slate-800"
+                              className="px-1.5 py-0.5 rounded text-[11px] bg-slate-800/80 text-slate-400 border border-slate-800"
                             >
                               #{t}
                             </span>
@@ -599,7 +600,7 @@ export default function DocumentImportModal({
                       {isExpanded && (
                         <div className="mt-3 pl-7 pt-3 border-t border-slate-800/80 text-xs text-slate-300 space-y-2">
                           {draft.properties.length > 0 && (
-                            <div className="p-2.5 bg-slate-900/90 rounded-xl border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                            <div className="p-2.5 bg-slate-900/90 rounded-xl border border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                               {draft.properties.map((p, idx) => (
                                 <div key={idx} className="flex items-center justify-between gap-2">
                                   <span className="text-slate-500 font-semibold">{p.key}:</span>
@@ -609,7 +610,7 @@ export default function DocumentImportModal({
                             </div>
                           )}
                           <div
-                            className="prose prose-invert prose-xs max-h-48 overflow-y-auto custom-scrollbar p-3 bg-slate-900/60 rounded-xl border border-slate-800"
+                            className="prose dark:prose-invert prose-xs max-h-48 overflow-y-auto custom-scrollbar p-3 bg-slate-900/60 rounded-xl border border-slate-800"
                             dangerouslySetInnerHTML={{ __html: draft.contentHtml }}
                           />
                         </div>
@@ -632,14 +633,14 @@ export default function DocumentImportModal({
           </button>
 
           {actionError && (
-            <span className="text-xs text-red-300 mx-3 flex-1 text-right">⚠️ {actionError}</span>
+            <span className="text-xs text-red-300 mx-3 flex-1 flex items-center justify-end gap-1.5"><TriangleAlert size={13} aria-hidden /> {actionError}</span>
           )}
 
           {activeTab === 'import' && parsedDrafts.length > 0 && (
             <button
               onClick={handleConfirmImport}
               disabled={selectedCount === 0 || isWorking}
-              className="px-6 py-2 bg-gold hover:bg-gold-hover text-slate-950 font-bold rounded-xl shadow-lg shadow-gold/20 text-xs disabled:opacity-40 transition-all flex items-center gap-1.5"
+              className="px-6 py-2 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-xl shadow-lg shadow-gold/20 text-xs disabled:opacity-40 transition-all flex items-center gap-1.5"
             >
               <span>
                 {importMode === 'replace'

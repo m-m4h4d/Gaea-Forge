@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CanvasData, LoreArticle } from '@/lib/database';
+import { ChevronDown, ChevronRight, GitFork, Inbox, Network, Palette, PanelLeftClose, Pin, Plus, Search, X } from 'lucide-react';
 
 export type ViewMode = 'editor' | 'canvas';
 
@@ -77,7 +78,7 @@ export default function Sidebar({
               />
               <div>
                 <h1 className="text-base font-bold tracking-wider text-gold">Gaea-Forge</h1>
-                <p className="text-[10px] text-slate-500 tracking-tight">Local World Architect</p>
+                <p className="text-[11px] text-slate-500 tracking-tight">Local World Architect</p>
               </div>
             </div>
 
@@ -87,14 +88,14 @@ export default function Sidebar({
                 className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-gold rounded-lg text-xs transition-colors flex items-center gap-1"
                 title="Intelligent Document Import (.pdf, .docx, .doc, .md, .txt) & Backup"
               >
-                <span>📥</span> <span className="hidden sm:inline">Import</span>
+                <Inbox size={13} aria-hidden /> <span className="hidden sm:inline">Import</span>
               </button>
               <button
                 onClick={() => onClose()}
                 className="p-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-gold rounded-lg text-xs transition-colors"
                 title="Collapse Sidebar"
               >
-                ◀
+                <PanelLeftClose size={14} aria-hidden />
               </button>
             </div>
           </div>
@@ -109,13 +110,13 @@ export default function Sidebar({
                 placeholder="Search title, lore, tags..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-parchment placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
               />
-              <span className="absolute left-2.5 top-1.5 text-slate-500 text-xs">🔍</span>
+              <Search size={13} className="absolute left-2.5 top-2 text-slate-500" aria-hidden />
               {searchQuery && (
                 <button
                   onClick={() => onSearchChange('')}
                   className="absolute right-2.5 top-1.5 text-slate-500 hover:text-gold text-xs"
                 >
-                  ✕
+                  <X size={12} aria-hidden />
                 </button>
               )}
             </div>
@@ -124,8 +125,8 @@ export default function Sidebar({
             {selectedTagFilter && (
               <div className="mt-2 flex items-center justify-between bg-gold/10 border border-gold/30 rounded px-2 py-1 text-xs text-gold">
                 <span>Tag filter: <strong>#{selectedTagFilter}</strong></span>
-                <button onClick={() => onClearTagFilter()} className="hover:text-white font-bold">
-                  ✕
+                <button onClick={() => onClearTagFilter()} className="hover:text-slate-50 font-bold">
+                  <X size={12} aria-hidden />
                 </button>
               </div>
             )}
@@ -136,12 +137,12 @@ export default function Sidebar({
             {/* World Canvases Section */}
             <div>
               <div className="flex items-center justify-between px-2 mb-2">
-                <span className="font-semibold text-gold uppercase text-[10px] tracking-wider flex items-center gap-1">
-                  <span>🎨</span> World Canvases
+                <span className="font-semibold text-gold uppercase text-[11px] tracking-wider flex items-center gap-1">
+                  <Palette size={12} aria-hidden /> World Canvases
                 </span>
                 <button
                   onClick={() => onNewCanvas()}
-                  className="text-[10px] text-slate-400 hover:text-gold font-bold px-1 rounded transition-colors"
+                  className="text-[11px] text-slate-400 hover:text-gold font-bold px-1 rounded transition-colors"
                   title="Create New Canvas"
                 >
                   + New
@@ -155,15 +156,15 @@ export default function Sidebar({
                       onClick={() => onSelectCanvas(canvas.id)}
                       className={`w-full text-left py-1.5 pl-2.5 pr-7 rounded-lg text-xs flex items-center justify-between transition-all ${
                         activeCanvasId === canvas.id && activeViewMode === 'canvas'
-                          ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
+                          ? 'bg-gold/15 text-gold font-semibold ring-1 ring-inset ring-gold/30'
                           : 'text-parchment hover:bg-slate-800/80 hover:text-gold'
                       }`}
                     >
                       <span className="truncate flex items-center gap-1.5">
-                        <span>{canvas.type === 'world-web' ? '🌐' : '🌳'}</span>
+                        {canvas.type === 'world-web' ? <Network size={13} aria-hidden /> : <GitFork size={13} aria-hidden />}
                         {canvas.title}
                       </span>
-                      <span className="text-[9px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
+                      <span className="text-[10px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
                         {canvas.type === 'world-web' ? 'Web' : 'Tree'}
                       </span>
                     </button>
@@ -173,12 +174,12 @@ export default function Sidebar({
                         onClick={(e) => onDeleteCanvas(canvas.id, e)}
                         className={`absolute right-1.5 text-xs p-1 rounded transition-opacity ${
                           activeCanvasId === canvas.id && activeViewMode === 'canvas'
-                            ? 'text-slate-900 hover:text-red-700 font-bold'
+                            ? 'text-gold/70 hover:text-red-400 font-bold'
                             : 'text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 font-bold'
                         }`}
                         title={`Delete ${canvas.title}`}
                       >
-                        ✕
+                        <X size={12} aria-hidden />
                       </button>
                     )}
                   </li>
@@ -190,8 +191,8 @@ export default function Sidebar({
             {pinnedArticles.length > 0 && (
               <div>
                 <div className="flex items-center justify-between px-2 mb-2">
-                  <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider flex items-center gap-1">
-                    <span>📌</span> Pinned Codex
+                  <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider flex items-center gap-1">
+                    <Pin size={12} aria-hidden /> Pinned Codex
                   </span>
                 </div>
                 <ul className="space-y-1">
@@ -201,12 +202,12 @@ export default function Sidebar({
                         onClick={() => onSelectArticle(art.id)}
                         className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
                           activeArticleId === art.id && activeViewMode === 'editor'
-                            ? 'bg-gold text-slate-950 font-bold shadow-md shadow-gold/10'
+                            ? 'bg-gold/15 text-gold font-semibold ring-1 ring-inset ring-gold/30'
                             : 'text-slate-300 hover:bg-slate-800/80 hover:text-gold'
                         }`}
                       >
                         <span className="truncate">{art.title}</span>
-                        <span className="text-[10px] text-slate-500 shrink-0 ml-1 font-mono">
+                        <span className="text-[11px] text-slate-500 shrink-0 ml-1 font-mono">
                           {art.category.slice(0, 3)}
                         </span>
                       </button>
@@ -219,7 +220,7 @@ export default function Sidebar({
             {/* Category Folders */}
             <div>
               <div className="flex items-center justify-between px-2 mb-2">
-                <span className="font-semibold text-slate-400 uppercase text-[10px] tracking-wider">
+                <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider">
                   {codexTitle}
                 </span>
                 <button
@@ -230,7 +231,7 @@ export default function Sidebar({
                       onExpandedChange(new Set(displayCategories));
                     }
                   }}
-                  className="text-[10px] text-slate-500 hover:text-gold transition-colors"
+                  className="text-[11px] text-slate-500 hover:text-gold transition-colors"
                 >
                   {expandedCategories.size > 0 ? 'Collapse All' : 'Expand All'}
                 </button>
@@ -248,11 +249,15 @@ export default function Sidebar({
                           onClick={() => onToggleCategory(cat)}
                           className="text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors text-slate-300 group-hover:text-gold"
                         >
-                          <span className="text-slate-500 text-[10px] w-2.5 inline-block">{isExpanded ? '▼' : '▶'}</span>
+                          {isExpanded ? (
+                <ChevronDown size={13} className="text-slate-500" aria-hidden />
+              ) : (
+                <ChevronRight size={13} className="text-slate-500" aria-hidden />
+              )}
                           {cat}
                         </button>
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">
+                          <span className="text-[11px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">
                             {categoryArticles.length}
                           </span>
                           <button
@@ -284,7 +289,7 @@ export default function Sidebar({
                               </li>
                             ))
                           ) : (
-                            <li className="text-[10px] text-slate-600 px-2 py-0.5 italic">
+                            <li className="text-[11px] text-slate-500 px-2 py-0.5 italic">
                               {searchQuery || selectedTagFilter ? 'No matching lore' : 'No articles yet'}
                             </li>
                           )}
@@ -301,9 +306,9 @@ export default function Sidebar({
           <div className="p-3 border-t border-slate-800 bg-slate-950/80">
             <button
               onClick={() => onNewArticle(displayCategories[0] || 'Characters')}
-              className="w-full py-2 bg-gradient-to-r from-gold to-amber-500 hover:from-amber-400 hover:to-gold text-slate-950 font-bold rounded-lg text-xs shadow-lg shadow-gold/20 flex items-center justify-center gap-1.5 transition-all"
+              className="w-full py-2 bg-gold hover:bg-gold-hover text-on-accent font-bold rounded-lg text-xs shadow-lg shadow-gold/20 flex items-center justify-center gap-1.5 transition-all"
             >
-              <span>+</span> {newArticleLabel}
+              <Plus size={14} strokeWidth={2.5} aria-hidden /> {newArticleLabel}
             </button>
           </div>
         </div>

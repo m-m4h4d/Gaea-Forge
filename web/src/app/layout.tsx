@@ -34,8 +34,15 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="dark"
       suppressHydrationWarning
     >
+      <head>
+        {/* Applies the saved color mode and role colors before first paint.
+            A blocking same-origin script, so it also works under the Tauri CSP. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="/theme-init.js" />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>{children}</body>
     </html>
   );

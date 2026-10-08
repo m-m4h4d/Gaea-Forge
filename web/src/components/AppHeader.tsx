@@ -4,7 +4,10 @@ import React from 'react';
 import { CanvasData, LoreArticle } from '@/lib/database';
 import { RoleConfig } from '@/lib/roles';
 import { SaveStatus } from '@/hooks/useArticleSaver';
+import { ColorMode } from '@/lib/colorMode';
 import { ViewMode } from './Sidebar';
+import { ChevronDown, FileText, GitFork, Menu, Monitor, Moon, Network, PanelRight, Pin, Sun, Trash2 } from 'lucide-react';
+import RoleIcon from './RoleIcon';
 
 interface AppHeaderProps {
   isSidebarOpen: boolean;
@@ -23,7 +26,15 @@ interface AppHeaderProps {
   onTogglePin: () => void;
   canDeleteCanvas: boolean;
   onDeleteCanvas: () => void;
+  colorMode: ColorMode;
+  onCycleColorMode: () => void;
 }
+
+const COLOR_MODE_LABELS: Record<ColorMode, string> = {
+  dark: 'Dark theme',
+  light: 'Light theme',
+  system: 'System theme',
+};
 
 // Top bar: view switcher, breadcrumb, role picker, save status and view actions
 export default function AppHeader({
@@ -43,7 +54,11 @@ export default function AppHeader({
   onTogglePin,
   canDeleteCanvas,
   onDeleteCanvas,
+  colorMode,
+  onCycleColorMode,
 }: AppHeaderProps) {
+  const ColorModeIcon = colorMode === 'dark' ? Moon : colorMode === 'light' ? Sun : Monitor;
+
   return (
       <header className="h-14 border-b border-slate-800 flex items-center px-3 sm:px-6 justify-between shrink-0 bg-slate-900/80 backdrop-blur-md z-10 gap-2">
         {/* Mode Switcher Tabs & Sidebar Toggle */}
@@ -54,63 +69,59 @@ export default function AppHeader({
               className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-gold/60 text-gold rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 shrink-0"
               title="Open Sidebar"
             >
-              <span>☰</span> <span className="hidden md:inline">Codex</span>
+              <Menu size={14} aria-hidden /> <span className="hidden md:inline">Codex</span>
             </button>
           )}
 
-          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 min-w-0">
             <button
               onClick={() => onViewModeChange('editor')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeViewMode === 'editor'
-                  ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                  ? 'bg-slate-800 text-gold shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>📄</span> <span className="hidden sm:inline">Lore Editor</span><span className="sm:hidden">Editor</span>
+              <FileText size={14} aria-hidden /> <span className="hidden sm:inline">Lore Editor</span><span className="sm:hidden">Editor</span>
             </button>
             <button
               onClick={() => onViewModeChange('canvas')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap min-w-0 ${
                 activeViewMode === 'canvas'
-                  ? 'bg-gold text-slate-950 shadow-md shadow-gold/20'
+                  ? 'bg-slate-800 text-gold shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <span>{activeCanvas?.type === 'family-tree' ? '🌳' : '🌐'}</span> <span className="hidden sm:inline">Canvas: {activeCanvas?.title}</span><span className="sm:hidden">Canvas</span>
+              {activeCanvas?.type === 'family-tree' ? <GitFork size={14} aria-hidden /> : <Network size={14} aria-hidden />} <span className="hidden sm:inline truncate max-w-[11rem]" title={activeCanvas?.title}>{activeCanvas?.title}</span><span className="sm:hidden">Canvas</span>
             </button>
           </div>
-
-          {activeViewMode === 'editor' && (
-            <div className="hidden xl:flex items-center gap-2 text-xs text-slate-400 ml-2 truncate">
-              <span className="text-slate-500 font-semibold">Path:</span>
-              <span className="text-slate-400 font-medium truncate">{activeArticle?.category || 'General'}</span>
-              <span>/</span>
-              <span className="text-gold font-bold truncate max-w-[160px]">{activeArticle?.title || 'Untitled Entity'}</span>
-            </div>
-          )}
         </div>
 
         {/* Right Header Controls */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Color mode: dark -> light -> system */}
+          <button
+            onClick={onCycleColorMode}
+            className="p-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-gold hover:border-gold/60 transition-colors shrink-0"
+            title={`${COLOR_MODE_LABELS[colorMode]} (click to change)`}
+            aria-label={`${COLOR_MODE_LABELS[colorMode]}, click to change`}
+          >
+            <ColorModeIcon size={15} aria-hidden />
+          </button>
+
           {/* Active Role & Theme Switcher Button */}
           <button
             onClick={() => onOpenRolePicker()}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:opacity-90 shrink-0"
-            style={{
-              borderColor: activeRoleConfig.theme.primary,
-              backgroundColor: activeRoleConfig.theme.primaryLight,
-              color: activeRoleConfig.theme.primary,
-            }}
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl border border-gold/70 bg-gold/10 text-gold text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:bg-gold/20 shrink-0"
             title="Switch Workspace Role & Theme"
           >
-            <span>{activeRoleConfig.icon}</span>
+            <RoleIcon roleId={activeRoleConfig.id} size={14} />
             <span className="hidden md:inline">{activeRoleConfig.shortName}</span>
-            <span className="text-[10px] opacity-75">▾</span>
+            <ChevronDown size={12} className="opacity-75" aria-hidden />
           </button>
 
           {/* Auto-save status */}
-          <div className="text-[11px] text-slate-400 hidden sm:flex items-center gap-1.5">
+          <div className="text-xs text-slate-400 hidden lg:flex items-center gap-1.5">
             {saveStatus === 'error' ? (
               <button
                 onClick={() => onRetrySave()}
@@ -140,7 +151,7 @@ export default function AppHeader({
                 }`}
                 title={isInspectorOpen ? 'Hide Entity Inspector' : 'Show Entity Inspector'}
               >
-                <span>⚜</span> <span className="hidden md:inline">Inspector</span>
+                <PanelRight size={14} aria-hidden /> <span className="hidden xl:inline">Inspector</span>
               </button>
 
               {/* Pin Toggle Button */}
@@ -153,7 +164,7 @@ export default function AppHeader({
                 }`}
                 title={activeArticle?.isPinned ? 'Unpin Article' : 'Pin Article to top'}
               >
-                📌 <span className="hidden sm:inline">{activeArticle?.isPinned ? 'Pinned' : 'Pin'}</span>
+                <Pin size={13} aria-hidden /> <span className="hidden xl:inline">{activeArticle?.isPinned ? 'Pinned' : 'Pin'}</span>
               </button>
 
             </>
@@ -162,10 +173,10 @@ export default function AppHeader({
           {activeViewMode === 'canvas' && canDeleteCanvas && (
             <button
               onClick={() => onDeleteCanvas()}
-              className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 text-red-400 hover:bg-red-900 hover:text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 bg-red-950/60 border border-red-800/80 text-red-400 hover:bg-red-900 hover:text-slate-50 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
               title="Delete this canvas"
             >
-              <span>🗑️</span> <span className="hidden sm:inline">Delete Canvas</span>
+              <Trash2 size={13} aria-hidden /> <span className="hidden sm:inline">Delete Canvas</span>
             </button>
           )}
         </div>

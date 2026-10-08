@@ -361,29 +361,3 @@ export function setOnboardingCompleted(completed: boolean = true) {
     // ignore
   }
 }
-
-// Maps semantic bucket (character, location, faction, magic, bestiary, notes) to the role's actual category name
-export function mapSemanticToRoleCategory(
-  semantic: 'characters' | 'locations' | 'factions' | 'magic' | 'artifacts' | 'bestiary' | 'notes',
-  roleId: RoleId
-): string {
-  const categories = ROLES[roleId]?.categories || ROLES[DEFAULT_ROLE_ID].categories;
-
-  switch (semantic) {
-    case 'characters':
-      return categories.find((c) => /character|people|cast|npc/i.test(c)) || categories[0];
-    case 'locations':
-      return categories.find((c) => /location|realm|level|dungeon|place|biome/i.test(c)) || categories[1] || categories[0];
-    case 'factions':
-      return categories.find((c) => /faction|kingdom|guild|organization|project/i.test(c)) || categories[2] || categories[0];
-    case 'magic':
-      return categories.find((c) => /magic|system|mechanic|spell|concept/i.test(c)) || categories[3] || categories[0];
-    case 'artifacts':
-      return categories.find((c) => /relic|artifact|weapon|item|gear/i.test(c)) || categories[3] || categories[0];
-    case 'bestiary':
-      return categories.find((c) => /bestiary|monster|species/i.test(c)) || categories.find((c) => /character|npc/i.test(c)) || categories[0];
-    case 'notes':
-    default:
-      return categories.find((c) => /note|plot|session|journal|archive|chapter/i.test(c)) || categories[categories.length - 1];
-  }
-}

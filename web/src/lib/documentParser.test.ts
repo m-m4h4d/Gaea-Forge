@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { articlesToDrafts, convertTextToHtml, parseDocumentFile, segmentDocumentText } from './documentParser';
+import { articlesToDrafts, convertTextToHtml, parseDocumentFile, recategorizeDrafts, segmentDocumentText } from './documentParser';
+import { FANTASY_BIBLE, SCIFI_GUIDE } from './__fixtures__/importSamples';
+import { defaultImportRules } from './importRules';
 
 describe('convertTextToHtml', () => {
   it('escapes HTML in the title and body', () => {
@@ -95,3 +97,101 @@ describe('parseDocumentFile', () => {
     expect(drafts.map((d) => d.title)).toEqual(['One', 'Two']);
   });
 });
+
+describe('segmentation and categorizing without world-specific rules', () => {
+  const summary = (doc: string, role: Parameters<typeof segmentDocumentText>[1]) =>
+    segmentDocumentText(doc, role).map((d) => `${d.title} -> ${d.category}`);
+
+  it('sorts a fantasy world bible into the author categories', () => {
+    expect(summary(FANTASY_BIBLE, 'author-bible')).toEqual([
+      'The Aethelian Dominion -> Kingdoms & Factions',
+      'The Harkness Empire -> Kingdoms & Factions',
+      'Roric Houstan (The Captain) -> Characters & Cast',
+      'Mira Vale -> Characters & Cast',
+      'Vampires -> Bestiary & Species',
+      'Werewolves -> Bestiary & Species',
+      'Stone of Embers -> Magic & Relics',
+    ]);
+  });
+
+  it('sorts a sci-fi guide for different roles', () => {
+    expect(summary(SCIFI_GUIDE, 'author-bible')).toEqual([
+      'The Solar Compact -> Kingdoms & Factions',
+      'Rust Collective -> Kingdoms & Factions',
+      'Commander Ines Okafor -> Characters & Cast',
+      'Dr. Tarik Venn -> Characters & Cast',
+      'Ceres Port -> Realms & Locations',
+      'Vesta Station -> Realms & Locations',
+      'Fold Drive -> Magic & Relics',
+      'Plasma Lance -> Magic & Relics',
+    ]);
+    expect(summary(SCIFI_GUIDE, 'game-dev')).toEqual([
+      'The Solar Compact -> Factions & Guilds',
+      'Rust Collective -> Factions & Guilds',
+      'Commander Ines Okafor -> Characters & NPCs',
+      'Dr. Tarik Venn -> Characters & NPCs',
+      'Ceres Port -> Levels & Biomes',
+      'Vesta Station -> Levels & Biomes',
+      'Fold Drive -> Game Systems & Mechanics',
+      'Plasma Lance -> Weapons & Items',
+    ]);
+  });
+
+  it('keeps "Key: Value" lines as properties, never as new entries', () => {
+    const [dominion] = segmentDocumentText(FANTASY_BIBLE, 'author-bible');
+    expect(dominion.properties).toEqual([
+      { key: 'Capital City', value: 'Aethelia' },
+      { key: 'Ruler', value: 'High Regent Calder' },
+    ]);
+  });
+
+  it('treats a lone "Label:" line as a subheading inside the entry', () => {
+    const roric = segmentDocumentText(FANTASY_BIBLE, 'author-bible')[2];
+    expect(roric.contentHtml).toContain('<h3>Identity &amp; Personality</h3>');
+    expect(roric.rawText).toContain('A stern veteran soldier');
+  });
+
+  it('tags entries with the section they came from', () => {
+    const drafts = segmentDocumentText(FANTASY_BIBLE, 'author-bible');
+    expect(drafts.map((d) => d.tags[0])).toEqual([
+      'governments', 'governments', 'characters', 'characters', 'bestiary', 'bestiary', 'gemstones',
+    ]);
+  });
+
+  it('recognizes ALL CAPS section headings', () => {
+    const drafts = segmentDocumentText('THE NORTHERN REACHES\n\nFrostgate\nA walled city in the snow.', 'author-bible');
+    expect(drafts.map((d) => [d.title, d.sectionContext])).toEqual([['Frostgate', 'THE NORTHERN REACHES']]);
+  });
+
+  it('applies custom keyword rules', () => {
+    const rules = defaultImportRules('author-bible').map((r) =>
+      r.category === 'Plot & Chapters' ? { ...r, keywords: [...r.keywords, 'gemstone'] } : r
+    );
+    const stone = segmentDocumentText(FANTASY_BIBLE, 'author-bible', rules).at(-1)!;
+    expect(stone.category).toBe('Plot & Chapters');
+  });
+});
+
+describe('recategorizeDrafts', () => {
+  it('re-sorts drafts with new rules but keeps locked categories', () => {
+    const drafts = segmentDocumentText(SCIFI_GUIDE, 'author-bible');
+    drafts[0] = { ...drafts[0], category: 'Plot & Chapters', categoryLocked: true };
+    // Move "technology" from Magic & Relics to Realms & Locations
+    const rules = defaultImportRules('author-bible').map((r) =>
+      r.category === 'Realms & Locations'
+        ? { ...r, keywords: [...r.keywords, 'technology'] }
+        : r.category === 'Magic & Relics'
+          ? { ...r, keywords: ['magic', 'relic'] }
+          : r
+    );
+    const resorted = recategorizeDrafts(drafts, 'author-bible', rules);
+    expect(resorted[0].category).toBe('Plot & Chapters');
+    expect(resorted.find((d) => d.title === 'Fold Drive')!.category).toBe('Realms & Locations');
+  });
+
+  it('never re-sorts already-structured JSON imports', () => {
+    const [draft] = articlesToDrafts([{ id: 'a', title: 'Mira', category: 'Characters & Cast' }], 'author-bible');
+    expect(draft.categoryLocked).toBe(true);
+  });
+});
+

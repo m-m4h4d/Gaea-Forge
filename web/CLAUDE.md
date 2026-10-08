@@ -41,6 +41,7 @@ web/src/
     backup.ts             Backup format, parsing, snapshots, canvas pruning
     articles.ts           Pure article helpers (search, categories, factories)
     documentParser.ts     .pdf/.docx/.doc/.md/.txt/.json import and segmentation
+    importRules.ts        Keyword rules that sort imported entries into categories (user-editable)
     familyTreeLayout.ts   Family tree auto-arrange
     links.ts              Article links: extraction, backlinks, [[Title]] resolution
     roles.ts              Workspace roles: categories, wording, theme colors
@@ -70,6 +71,12 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`).
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
+
+## Importer
+
+- Splitting uses document structure only: Markdown headings, numbered and Title Case heading lines, ALL CAPS or known group names as sections, and a heading directly followed by another heading as a section. `Key: Value` lines are properties and a lone `Label:` line is a subheading; neither starts a new entry.
+- Categories come from `importRules.ts`: each role category gets keywords from its own name plus a generic genre vocabulary, scored by where they match (section > title > body). Users edit the keywords per role in the import dialog.
+- Keep it world-agnostic: never add words from a particular setting to the parser or the default vocabulary. Test against the sample documents in `lib/__fixtures__/importSamples.ts`.
 
 ## Theming
 

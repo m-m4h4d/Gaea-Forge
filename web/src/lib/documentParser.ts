@@ -1,13 +1,18 @@
 // Intelligent Multi-Format Document Importer & Multi-Entity Segmenter
 import { EntityProperty, LoreArticle } from './database';
-import { RoleId, mapSemanticToRoleCategory } from './roles';
+import { RoleId } from './roles';
+import { classifyEntry, defaultImportRules, fallbackCategory, ImportRule } from './importRules';
 import { sanitizeImportedHtml } from './sanitizeHtml';
 
 export interface ParsedEntityDraft {
   id: string;
   title: string;
   category: string;
-  semanticCategory: 'characters' | 'locations' | 'factions' | 'magic' | 'artifacts' | 'bestiary' | 'notes';
+  // The section heading the entry was found under ('' if none); used for categorizing
+  sectionContext: string;
+  // True once the category is final (already-structured imports, or changed by hand),
+  // so re-sorting with new keyword rules leaves it alone
+  categoryLocked: boolean;
   tags: string[];
   properties: EntityProperty[];
   contentHtml: string;
@@ -41,6 +46,16 @@ export function convertTextToHtml(title: string, text: string): string {
       }
       const hText = line.replace(/^#{2,4}\s+/, '');
       htmlParts.push(`<h2>${escapeHtml(hText)}</h2>`);
+      continue;
+    }
+
+    // "Identity & Personality:" on its own line is a subheading
+    if (/^[^:]{2,40}:$/.test(line) && !line.startsWith('http')) {
+      if (inList) {
+        htmlParts.push('</ul>');
+        inList = false;
+      }
+      htmlParts.push(`<h3>${escapeHtml(line.slice(0, -1))}</h3>`);
       continue;
     }
 
@@ -224,320 +239,165 @@ async function extractFromDocx(arrayBuffer: ArrayBuffer): Promise<{ text: string
   }
 }
 
-// Extract key-value entity properties and tags
-function extractPropertiesAndTags(title: string, lines: string[], sectionContext: string) {
+// "Key: Value" lines (optionally bulleted) become entity properties
+const PROPERTY_LINE = /^[●○*•-]?\s*([A-Za-z0-9\s&/()'-]{2,30}):\s*(.+)$/;
+
+function extractProperties(lines: string[]): EntityProperty[] {
   const properties: EntityProperty[] = [];
-  const textBody = lines.join('\n');
-
   for (const rawLine of lines) {
-    const line = rawLine.trim();
-    // Match "Key: Value" or "● Key: Value" or "○ Key: Value"
-    const propMatch = line.match(/^[●○*•-]?\s*([A-Za-z0-9\s&/()'-]{2,30}):\s*(.+)$/);
-    if (propMatch && !propMatch[1].toLowerCase().includes('http')) {
-      const key = propMatch[1].trim();
-      const value = propMatch[2].trim();
-      if (value.length > 0 && value.length < 250) {
-        properties.push({ key, value });
-      }
-    }
+    const match = rawLine.trim().match(PROPERTY_LINE);
+    if (!match || match[1].toLowerCase().includes('http')) continue;
+    const value = match[2].trim();
+    if (value.length > 0 && value.length < 250) properties.push({ key: match[1].trim(), value });
   }
-
-  const tags = new Set<string>();
-  const lowerTitle = title.toLowerCase();
-  const lowerSection = sectionContext.toLowerCase();
-  const lowerBody = textBody.toLowerCase();
-
-  // Section and Title Tag Hints
-  if (
-    lowerSection.includes('governments') ||
-    lowerSection.includes('contingent') ||
-    lowerTitle.includes('kingdom') ||
-    lowerTitle.includes('empire') ||
-    lowerTitle.includes('dominion') ||
-    lowerTitle.includes('nation')
-  ) {
-    tags.add('faction');
-  }
-  if (lowerSection.includes('bestiary') || lowerBody.includes('monster')) {
-    tags.add('bestiary');
-  }
-  if (lowerSection.includes('gemstones') || lowerTitle.includes('stone of') || lowerBody.includes('stone of')) {
-    tags.add('gemstone');
-    tags.add('artifact');
-  }
-  if (lowerSection.includes('schools') || lowerTitle.includes('school of')) {
-    tags.add('school');
-    tags.add('location');
-  }
-  if (lowerSection.includes('arcanas') || lowerTitle.includes('arcana') || lowerBody.includes('arcana')) {
-    tags.add('arcana');
-    tags.add('magic');
-  }
-  if (lowerSection.includes('divinations') || lowerBody.includes('divination')) {
-    tags.add('divination');
-  }
-  if (lowerTitle.includes('mercer')) {
-    tags.add('mercer');
-    tags.add('character');
-  }
-  if (lowerBody.includes('vampire')) tags.add('vampire');
-  if (lowerBody.includes('dhampir')) tags.add('dhampir');
-  if (lowerBody.includes('werewolf')) tags.add('werewolf');
-  if (lowerBody.includes('heartless')) tags.add('heartless');
-
-  // Semantic Category Classification
-  let semanticCategory: 'characters' | 'locations' | 'factions' | 'magic' | 'artifacts' | 'bestiary' | 'notes' = 'notes';
-
-  if (
-    lowerSection.includes('character') ||
-    lowerSection.includes('mercer') ||
-    lowerSection.includes('contingent') ||
-    lowerTitle.includes('mercer') ||
-    lowerTitle.includes('captain') ||
-    lowerTitle.includes('oracle') ||
-    lowerTitle.includes('shaman') ||
-    lowerTitle.includes('brother') ||
-    lowerBody.includes('identity & personality') ||
-    lowerBody.includes('allegiance/role') ||
-    /^[A-Z][a-z]+\s+[A-Z][a-z]+(\s+\([^)]+\))?$/.test(title)
-  ) {
-    if (lowerTitle.includes('baseline') || lowerTitle === 'mercers') {
-      semanticCategory = 'factions';
-    } else {
-      semanticCategory = 'characters';
-    }
-  } else if (
-    lowerSection.includes('bestiary') ||
-    lowerTitle.includes('vampire') ||
-    lowerTitle.includes('dhampir') ||
-    lowerTitle.includes('werewolf') ||
-    lowerTitle.includes('ghoul') ||
-    lowerTitle.includes('mimic') ||
-    lowerTitle.includes('mummy') ||
-    lowerTitle.includes('monster') ||
-    lowerTitle.includes('abomination') ||
-    lowerTitle.includes('lineage')
-  ) {
-    semanticCategory = 'bestiary';
-  } else if (
-    lowerSection.includes('gemstone') ||
-    lowerTitle.includes('stone of') ||
-    lowerTitle.includes('katana') ||
-    lowerTitle.includes('weapon') ||
-    lowerTitle.includes('relic')
-  ) {
-    semanticCategory = 'artifacts';
-  } else if (
-    lowerSection.includes('governments') ||
-    lowerTitle.includes('dominion') ||
-    lowerTitle.includes('empire') ||
-    lowerTitle.includes('kingdom') ||
-    lowerTitle.includes('nation') ||
-    lowerTitle.includes('heartless')
-  ) {
-    semanticCategory = 'factions';
-  } else if (
-    lowerSection.includes('school') ||
-    lowerTitle.includes('school of') ||
-    lowerBody.includes('capital city') ||
-    lowerTitle.includes('city') ||
-    lowerTitle.includes('lake') ||
-    lowerTitle.includes('mountain')
-  ) {
-    semanticCategory = 'locations';
-  } else if (
-    lowerSection.includes('arcana') ||
-    lowerSection.includes('divination') ||
-    lowerTitle.includes('divination') ||
-    lowerTitle.includes('arcana') ||
-    lowerTitle.includes('attack')
-  ) {
-    semanticCategory = 'magic';
-  }
-
-  return {
-    semanticCategory,
-    properties,
-    tags: Array.from(tags),
-  };
+  return properties;
 }
 
-// Multi-Entity Document Segmentation Algorithm
-export function segmentDocumentText(text: string, activeRole: RoleId): ParsedEntityDraft[] {
-  const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = cleanText.split('\n');
+const slugify = (text: string) =>
+  text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-  const KNOWN_SECTIONS = [
-    'governments',
-    'bestiary',
-    'gemstones',
-    'schools',
-    'arcanas',
-    'arcana',
-    'divinations',
-    'divination',
-    'mercers',
-    'heartless',
-    'the aethelian dominion contingent',
-    'the harkness empire contingent',
-    'the fiona kingdom contingent',
-    'characters',
-    'locations',
-    'factions',
-    'weapons',
-    'items',
-    'monsters',
-    'game systems & mechanics',
-    'mechanics',
-    'quests',
-    'encounters',
-  ];
+// Generic headings that group entries (in addition to the role's own category names)
+const GENERIC_SECTION_NAMES = [
+  'characters', 'people', 'cast', 'npcs', 'locations', 'places', 'factions', 'organizations',
+  'creatures', 'bestiary', 'monsters', 'items', 'artifacts', 'weapons', 'magic', 'spells',
+  'technology', 'history', 'events', 'quests', 'chapters', 'glossary', 'appendix',
+];
 
-  let currentMajorSection = 'World Overview';
-  const rawSegments: { title: string; sectionContext: string; lines: string[] }[] = [];
-  let currentSegment: { title: string; sectionContext: string; lines: string[] } | null = null;
+// Small words that may stay lowercase in a Title Case heading ("Stone of Embers")
+const MINOR_WORDS = new Set(['of', 'the', 'and', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'de', 'von', 'van', 'du', 'la', 'le']);
 
-  function isMajorSectionHeader(line: string): boolean {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 50) return false;
-    // Markdown H1 opens a section; H2-H4 are entities (see isEntityHeader)
-    if (/^#\s+[A-Za-z0-9]/.test(trimmed)) return true;
-    const lower = trimmed.toLowerCase().replace(/[:#]/g, '').trim();
-    return KNOWN_SECTIONS.includes(lower);
+function isTitleCaseLine(line: string): boolean {
+  if (line.length > 60 || /[.,!?;:]$/.test(line) || !/^[A-Z]/.test(line)) return false;
+  const words = line.split(/\s+/);
+  if (words.length > 6) return false;
+  return words.every((w, i) => (i > 0 && MINOR_WORDS.has(w.toLowerCase())) || /^[A-Z0-9("'‘“]/.test(w));
+}
+
+// Multi-entity segmentation: split a document into one draft per entry, using
+// structure only (headings, numbering, Title Case lines), never world-specific words.
+export function segmentDocumentText(
+  text: string,
+  activeRole: RoleId,
+  rules: ImportRule[] = defaultImportRules(activeRole)
+): ParsedEntityDraft[] {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const sectionNames = new Set([
+    ...GENERIC_SECTION_NAMES,
+    ...rules.map((r) => r.category.toLowerCase()),
+  ]);
+
+  function isPropertyLine(line: string): boolean {
+    return PROPERTY_LINE.test(line);
   }
 
   function isEntityHeader(line: string): boolean {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.length > 65) return false;
-
-    // Markdown H2 / H3
-    if (/^#{2,4}\s+.+/.test(trimmed)) return true;
-
-    // Numbered entity e.g., "1. Roric Houstan (The Captain)" or "I. The Intelligent Abomination"
-    if (/^(\d+\.|\b[IVXLCDM]+\.)\s+[A-Z].+/.test(trimmed)) return true;
-
-    // "Title: Subtitle" or "Name (Title)"
-    if (/^[A-Z][A-Za-z0-9\s'’-]+:\s*([A-Z].+)?$/.test(trimmed) && trimmed.length < 55) {
-      const lower = trimmed.toLowerCase().replace(/[:.]/g, '').trim();
-      const nonEntityPrefixes = [
-        'capital city',
-        'phase 1',
-        'phase 2',
-        'phase 3',
-        'phase 4',
-        'arcana',
-        'allegiance/role',
-        'identity & personality',
-        'abilities & relic',
-        'abilities & weapons',
-        'origins & inheritance',
-        'nature',
-        'tactics',
-        'hierarchy & types',
-        'physiology & vulnerabilities',
-        'combat traits',
-        'unique divination',
-      ];
-      if (!nonEntityPrefixes.some((p) => lower.startsWith(p))) {
-        return true;
-      }
-    }
-
-    if (/^[A-Z][A-Za-z0-9\s'’-]+\s*\([A-Za-z0-9\s/'-]+\)$/.test(trimmed) && trimmed.length < 55) {
-      return true;
-    }
-
-    // Standalone entity names like "Vampires", "Werewolves", "Fire", "Water"
-    if (/^[A-Z][A-Za-z0-9\s'’-]+$/.test(trimmed) && trimmed.split(' ').length <= 4) {
-      const lower = trimmed.toLowerCase().trim();
-      const nonEntityWords = ['pact', 'binding', 'morph', 'curse', 'blessing', 'aging'];
-      if (!nonEntityWords.includes(lower) && !KNOWN_SECTIONS.includes(lower)) {
-        return true;
-      }
-    }
-
-    return false;
+    if (!line || line.length > 65 || isPropertyLine(line)) return false;
+    // Markdown H2-H4
+    if (/^#{2,4}\s+\S/.test(line)) return true;
+    // Numbered entries: "1. Roric Houstan (The Captain)", "IV. The Last Gate"
+    if (/^(\d+\.|[IVXLCDM]+\.)\s+[A-Z]/.test(line)) return true;
+    // "Name (Title)"
+    if (/^[A-Z][^()]{0,50}\([^()]{1,40}\)$/.test(line)) return true;
+    return isTitleCaseLine(line);
   }
+
+  const nextNonEmpty = (from: number) => {
+    for (let j = from; j < lines.length; j++) {
+      const t = lines[j].trim();
+      if (t) return t;
+    }
+    return '';
+  };
+
+  function isSectionHeader(line: string, index: number): boolean {
+    if (!line || line.length > 60) return false;
+    // Markdown H1
+    if (/^#\s+\S/.test(line)) return true;
+    const bare = line.replace(/[:#]/g, '').trim();
+    // ALL CAPS headings ("GOVERNMENTS", "THE NORTHERN REACHES")
+    if (/[A-Z]{3}/.test(bare) && bare === bare.toUpperCase() && bare.split(/\s+/).length <= 6) return true;
+    // Known group names, or a heading directly followed by another heading
+    if (sectionNames.has(bare.toLowerCase())) return true;
+    return isEntityHeader(line) && !/^#{2,4}\s/.test(line) && isEntityHeader(nextNonEmpty(index + 1));
+  }
+
+  const DEFAULT_SECTION = '';
+  let section = DEFAULT_SECTION;
+  type Segment = { title: string; sectionContext: string; lines: string[] };
+  const segments: Segment[] = [];
+  let current: Segment | null = null;
+  const hasContent = (seg: Segment | null): seg is Segment => !!seg && seg.lines.some((l) => l.trim());
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
     if (!trimmed) {
-      if (currentSegment && currentSegment.lines.length > 0) {
-        currentSegment.lines.push('');
-      }
+      if (current?.lines.length) current.lines.push('');
       continue;
     }
 
-    if (isMajorSectionHeader(trimmed)) {
-      currentMajorSection = trimmed.replace(/^#+\s*/, '').replace(/[:#]/g, '').trim();
+    if (isSectionHeader(trimmed, i)) {
+      section = trimmed.replace(/^#+\s*/, '').replace(/[:#]/g, '').trim();
       continue;
     }
 
     if (isEntityHeader(trimmed)) {
-      const cleanTitle = trimmed
-        .replace(/^#+\s*/, '')
-        .replace(/^(\d+\.|\b[IVXLCDM]+\.)\s+/, '')
-        .replace(/:$/, '')
-        .trim();
-
-      if (currentSegment && currentSegment.lines.filter((l) => l.trim().length > 0).length > 0) {
-        rawSegments.push(currentSegment);
-      }
-
-      currentSegment = {
-        title: cleanTitle,
-        sectionContext: currentMajorSection,
+      if (hasContent(current)) segments.push(current);
+      current = {
+        title: trimmed.replace(/^#+\s*/, '').replace(/^(\d+\.|[IVXLCDM]+\.)\s+/, '').trim(),
+        sectionContext: section,
         lines: [],
       };
       continue;
     }
 
-    if (currentSegment) {
-      currentSegment.lines.push(line);
+    if (current) {
+      current.lines.push(line);
     } else {
-      currentSegment = {
-        title: currentMajorSection || 'Overview',
-        sectionContext: currentMajorSection,
-        lines: [line],
-      };
+      // Text before the first heading becomes an entry named after its section
+      current = { title: section || 'Overview', sectionContext: section, lines: [line] };
     }
   }
+  if (hasContent(current)) segments.push(current);
 
-  if (currentSegment && currentSegment.lines.filter((l) => l.trim().length > 0).length > 0) {
-    rawSegments.push(currentSegment);
+  // No structure found: import the whole document as one article
+  if (segments.length === 0) {
+    segments.push({ title: 'Imported Document', sectionContext: DEFAULT_SECTION, lines });
   }
 
-  // Fallback: If no sub-entities were detected, treat the entire doc as 1 article
-  if (rawSegments.length === 0) {
-    rawSegments.push({
-      title: 'Imported Document',
-      sectionContext: 'General Lore',
-      lines: lines,
-    });
-  }
-
-  // Convert raw segments to fully enriched ParsedEntityDraft items
-  return rawSegments.map((seg, idx) => {
+  const fallback = fallbackCategory(activeRole);
+  return segments.map((seg, idx) => {
     const rawBody = seg.lines.join('\n').trim();
-    const { semanticCategory, properties, tags } = extractPropertiesAndTags(seg.title, seg.lines, seg.sectionContext);
-    const categoryName = mapSemanticToRoleCategory(semanticCategory, activeRole);
-    const contentHtml = convertTextToHtml(seg.title, rawBody);
     const timestamp = Date.now() + idx;
-
     return {
-      id: `imported-${seg.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}`,
+      id: `imported-${slugify(seg.title)}-${timestamp}`,
       title: seg.title,
-      category: categoryName,
-      semanticCategory,
-      tags,
-      properties,
-      contentHtml,
+      category: classifyEntry({ title: seg.title, sectionContext: seg.sectionContext, body: rawBody }, rules, fallback),
+      sectionContext: seg.sectionContext,
+      categoryLocked: false,
+      // The section an entry came from is a useful tag ("bestiary", "governments")
+      tags: seg.sectionContext ? [slugify(seg.sectionContext)].filter(Boolean) : [],
+      properties: extractProperties(seg.lines),
+      contentHtml: convertTextToHtml(seg.title, rawBody),
       rawText: rawBody,
       selected: true,
     };
   });
+}
+
+// Re-sort drafts with (edited) keyword rules, leaving locked categories alone
+export function recategorizeDrafts(
+  drafts: ParsedEntityDraft[],
+  activeRole: RoleId,
+  rules: ImportRule[]
+): ParsedEntityDraft[] {
+  const fallback = fallbackCategory(activeRole);
+  return drafts.map((d) =>
+    d.categoryLocked
+      ? d
+      : { ...d, category: classifyEntry({ title: d.title, sectionContext: d.sectionContext, body: d.rawText }, rules, fallback) }
+  );
 }
 
 // Turn already-structured articles (e.g. from a JSON export) into reviewable drafts
@@ -547,11 +407,9 @@ export function articlesToDrafts(items: unknown[], activeRole: RoleId): ParsedEn
     .map((item, idx) => ({
       id: typeof item.id === 'string' && item.id ? item.id : `json-import-${Date.now()}-${idx}`,
       title: typeof item.title === 'string' && item.title ? item.title : 'Untitled Lore',
-      category:
-        typeof item.category === 'string' && item.category
-          ? item.category
-          : mapSemanticToRoleCategory('notes', activeRole),
-      semanticCategory: 'notes' as const,
+      category: typeof item.category === 'string' && item.category ? item.category : fallbackCategory(activeRole),
+      sectionContext: '',
+      categoryLocked: true,
       tags: Array.isArray(item.tags) ? item.tags.filter((t) => typeof t === 'string') : [],
       properties: Array.isArray(item.properties)
         ? item.properties.filter((p) => p && typeof p.key === 'string' && typeof p.value === 'string')
@@ -568,7 +426,11 @@ export function articlesToDrafts(items: unknown[], activeRole: RoleId): ParsedEn
 }
 
 // Master file parser for File objects (.pdf, .docx, .doc, .md, .txt, .json)
-export async function parseDocumentFile(file: File, activeRole: RoleId): Promise<ParsedEntityDraft[]> {
+export async function parseDocumentFile(
+  file: File,
+  activeRole: RoleId,
+  rules: ImportRule[] = defaultImportRules(activeRole)
+): Promise<ParsedEntityDraft[]> {
   const fileName = file.name.toLowerCase();
   const arrayBuffer = await file.arrayBuffer();
 
@@ -589,13 +451,13 @@ export async function parseDocumentFile(file: File, activeRole: RoleId): Promise
   // 2. PDF Document
   if (fileName.endsWith('.pdf')) {
     const extractedText = await extractTextFromPdf(arrayBuffer);
-    return segmentDocumentText(extractedText, activeRole);
+    return segmentDocumentText(extractedText, activeRole, rules);
   }
 
   // 3. Word DOCX Document
   if (fileName.endsWith('.docx')) {
     const { text, html } = await extractFromDocx(arrayBuffer);
-    const segments = segmentDocumentText(text, activeRole);
+    const segments = segmentDocumentText(text, activeRole, rules);
     // If only one segment and mammoth generated clean HTML, preserve it
     if (segments.length === 1 && html) {
       segments[0].contentHtml = sanitizeImportedHtml(html);
@@ -606,10 +468,10 @@ export async function parseDocumentFile(file: File, activeRole: RoleId): Promise
   // 4. Legacy Word DOC Document
   if (fileName.endsWith('.doc')) {
     const extractedText = extractTextFromBinaryDoc(arrayBuffer);
-    return segmentDocumentText(extractedText, activeRole);
+    return segmentDocumentText(extractedText, activeRole, rules);
   }
 
   // 5. Markdown / Plain Text (.md, .txt)
   const text = new TextDecoder('utf-8').decode(arrayBuffer);
-  return segmentDocumentText(text, activeRole);
+  return segmentDocumentText(text, activeRole, rules);
 }

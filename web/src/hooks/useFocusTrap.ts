@@ -14,27 +14,42 @@ export function useFocusTrap(containerRef: RefObject<HTMLElement | null>, active
     if (!container) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
 
-    const focusables = () => Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
+    // Hidden elements (display:none, e.g. a styled file input) can't take focus
+    const focusables = () =>
+      Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0);
     (initialFocus?.current ?? focusables()[0] ?? container).focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return;
       const items = focusables();
       if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
+      // -1 when focus is on the container itself or a non-tabbable element
+      const index = items.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey && index <= 0) {
         e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+        items[items.length - 1].focus();
+      } else if (!e.shiftKey && (index === -1 || index === items.length - 1)) {
         e.preventDefault();
-        first.focus();
+        items[0].focus();
       }
     };
     container.addEventListener('keydown', onKeyDown);
     return () => {
       container.removeEventListener('keydown', onKeyDown);
-      previouslyFocused?.focus?.();
+      // The element that had focus may have gone or been disabled meanwhile (an action
+      // button disables itself while it works). Then fall back to the dialog still
+      // open underneath, so Tab keeps working inside it.
+      const canRestore =
+        previouslyFocused &&
+        previouslyFocused !== document.body &&
+        previouslyFocused.isConnected &&
+        !(previouslyFocused as HTMLButtonElement).disabled;
+      if (canRestore) {
+        previouslyFocused.focus();
+      } else {
+        const openDialogs = Array.from(document.querySelectorAll<HTMLElement>('[aria-modal="true"]')).filter((el) => el !== container);
+        openDialogs[openDialogs.length - 1]?.focus();
+      }
     };
   }, [active, containerRef, initialFocus]);
 }

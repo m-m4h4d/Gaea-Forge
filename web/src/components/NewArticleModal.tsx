@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { LORE_CATEGORIES, LoreCategory } from '@/lib/database';
+import Modal from './dialogs/Modal';
 
 interface NewArticleModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export default function NewArticleModal({
   const [title, setTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<LoreCategory | null>(null);
   const [tagsInput, setTagsInput] = useState('');
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -55,9 +58,13 @@ export default function NewArticleModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
-        <h2 className="text-xl font-bold text-gold tracking-wide mb-1">Create New Lore Entity</h2>
+    <Modal
+      onClose={onClose}
+      labelledBy="new-article-title"
+      overlayClassName="bg-slate-950/80 backdrop-blur-sm p-4"
+      className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150" initialFocus={titleInputRef}
+    >
+        <h2 id="new-article-title" className="text-xl font-bold text-gold tracking-wide mb-1">Create New Lore Entity</h2>
         <p className="text-xs text-slate-400 mb-6">Add a new character, location, faction, artifact or campaign note to your world.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-sm">
@@ -68,7 +75,7 @@ export default function NewArticleModal({
             <input
               type="text"
               required
-              autoFocus
+              ref={titleInputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Kingdom of Aethelgard"
@@ -123,7 +130,6 @@ export default function NewArticleModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

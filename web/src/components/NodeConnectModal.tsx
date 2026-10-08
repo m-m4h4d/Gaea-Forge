@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { RelationshipType } from '@/lib/database';
 import { GraduationCap, Heart, Link2, LucideIcon, Scroll, Shield, Swords, Users, UsersRound } from 'lucide-react';
+import Modal from './dialogs/Modal';
 
 interface NodeConnectModalProps {
   isOpen: boolean;
@@ -56,9 +57,13 @@ export default function NodeConnectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 select-none">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150">
-        <h2 className="text-xl font-bold text-gold tracking-wide mb-1 flex items-center gap-2">
+    <Modal
+      onClose={onClose}
+      labelledBy="node-connect-title"
+      overlayClassName="bg-slate-950/80 backdrop-blur-sm p-4 select-none"
+      className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150"
+    >
+        <h2 id="node-connect-title" className="text-xl font-bold text-gold tracking-wide mb-1 flex items-center gap-2">
           <Link2 size={18} aria-hidden /> Define Character Relationship
         </h2>
         <p className="text-xs text-slate-400 mb-5">
@@ -136,7 +141,6 @@ export default function NodeConnectModal({
             </div>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

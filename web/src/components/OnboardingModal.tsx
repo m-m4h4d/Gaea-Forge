@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ROLES, RoleId, RoleConfig, applyRoleTheme, setOnboardingCompleted } from '@/lib/roles';
 import { Check, Globe, Rocket } from 'lucide-react';
 import RoleIcon from './RoleIcon';
+import Modal from './dialogs/Modal';
 
 interface OnboardingModalProps {
   isOpen: boolean;
@@ -40,8 +41,12 @@ export default function OnboardingModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-background border border-slate-700/80 rounded-3xl shadow-2xl shadow-black/80 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-100 relative">
+    <Modal
+      onClose={onClose}
+      labelledBy="onboarding-title"
+      overlayClassName="bg-black/85 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+      className="bg-background border border-slate-700/80 rounded-3xl shadow-2xl shadow-black/80 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-slate-100 relative"
+    >
         {/* Subtle decorative radial gradients */}
         <div
           className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none transition-colors duration-500"
@@ -61,7 +66,7 @@ export default function OnboardingModal({
                 Welcome to Gaea-Forge
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-50 tracking-tight">
+            <h1 id="onboarding-title" className="text-2xl sm:text-3xl font-extrabold text-slate-50 tracking-tight">
               Choose Your Creative Workspace
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl">
@@ -232,7 +237,6 @@ export default function OnboardingModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,12 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { expect, openApp, openBackupTab, openImportTab, test } from './fixtures';
-
-async function createArticle(page: import('@playwright/test').Page, title: string) {
-  await page.getByRole('button', { name: /New Lore Entity/ }).last().click();
-  await page.getByPlaceholder('e.g. Kingdom of Aethelgard').fill(title);
-  await page.locator('form button[type=submit]').click();
-  await expect(page.getByText(title).first()).toBeVisible();
-}
+import { createArticle, expect, openApp, openBackupTab, openImportTab, test } from './fixtures';
 
 async function exportBackup(page: import('@playwright/test').Page, path: string) {
   await openBackupTab(page);

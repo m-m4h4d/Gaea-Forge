@@ -11,6 +11,11 @@ interface EntityInspectorProps {
   onUpdate: (article: LoreArticle) => void;
   onDelete: () => void;
   onTagClick: (tag: string) => void;
+  // Articles that link to this one
+  backlinks: LoreArticle[];
+  // Articles this one links to; title is undefined when the target was deleted
+  outgoingLinks: { id: string; title?: string }[];
+  onOpenArticle: (id: string) => void;
 }
 
 // Right panel for the active article: artwork, title, category, tags and properties
@@ -22,6 +27,9 @@ export default function EntityInspector({
   onUpdate,
   onDelete,
   onTagClick,
+  backlinks,
+  outgoingLinks,
+  onOpenArticle,
 }: EntityInspectorProps) {
   const [newTagInput, setNewTagInput] = useState('');
   const [showAddTagInput, setShowAddTagInput] = useState(false);
@@ -352,6 +360,61 @@ export default function EntityInspector({
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Links between articles */}
+            <div>
+              <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-2">
+                Mentioned In ({backlinks.length})
+              </h3>
+              {backlinks.length === 0 ? (
+                <p className="text-[11px] text-slate-600 italic">
+                  No articles link here yet. Type <span className="font-mono not-italic">[[</span> in another article to link to this one.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {backlinks.map((source) => (
+                    <li key={source.id}>
+                      <button
+                        onClick={() => onOpenArticle(source.id)}
+                        className="w-full text-left px-2 py-1 rounded-lg bg-slate-950/50 border border-slate-800 hover:border-gold hover:text-gold text-parchment-muted flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <span className="truncate">{source.title}</span>
+                        <span className="text-[10px] text-slate-500 shrink-0">{source.category}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {outgoingLinks.length > 0 && (
+                <>
+                  <h3 className="text-slate-400 text-[10px] uppercase font-bold tracking-wider mt-4 mb-2">
+                    Links To ({outgoingLinks.length})
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {outgoingLinks.map((link) =>
+                      link.title !== undefined ? (
+                        <button
+                          key={link.id}
+                          onClick={() => onOpenArticle(link.id)}
+                          className="px-2 py-0.5 bg-slate-800 border border-slate-700/80 rounded-full text-xs text-parchment-muted hover:border-gold hover:text-gold transition-colors"
+                        >
+                          {link.title}
+                        </button>
+                      ) : (
+                        <span
+                          key={link.id}
+                          title="This article was deleted"
+                          className="px-2 py-0.5 border border-red-900/80 rounded-full text-xs text-red-400 line-through"
+                        >
+                          Deleted article
+                        </span>
+                      )
+                    )}
+                  </div>
+                </>
               )}
             </div>
 

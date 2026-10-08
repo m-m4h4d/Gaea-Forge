@@ -72,6 +72,12 @@ describe('parseWorldBackup', () => {
     expect(parsed?.canvases.map((c) => c.id)).toEqual(['c1']);
   });
 
+  it('keeps links between articles when restoring', () => {
+    const linked = { ...article, content: '<p><a class="lore-link" data-lore-link="welcome-gaea-forge">Welcome</a></p>' };
+    const parsed = parseWorldBackup(JSON.parse(JSON.stringify(createBackup([linked], []))));
+    expect(parsed?.articles[0].content).toBe(linked.content);
+  });
+
   it('accepts backups without canvases', () => {
     const parsed = parseWorldBackup({ format: BACKUP_FORMAT, version: 1, articles: [article] });
     expect(parsed?.canvases).toEqual([]);

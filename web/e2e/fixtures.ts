@@ -37,3 +37,18 @@ export async function openImportTab(page: Page) {
   await page.getByTitle(/Intelligent Document Import/).click();
   await page.getByRole('button', { name: 'Document Import' }).click();
 }
+
+export async function createArticle(page: Page, title: string) {
+  await page.getByRole('button', { name: /New Lore Entity/ }).last().click();
+  await page.getByPlaceholder('e.g. Kingdom of Aethelgard').fill(title);
+  await page.locator('form button[type=submit]').click();
+  await expect(page.getByText(title).first()).toBeVisible();
+}
+
+// Open an article from the sidebar codex
+export async function openArticle(page: Page, title: string) {
+  // Pinned entries append a category abbreviation to the button name
+  const name = new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  await page.locator('aside').first().getByRole('button', { name }).first().click();
+  await expect(page.locator('.ProseMirror')).toBeVisible();
+}

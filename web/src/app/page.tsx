@@ -8,6 +8,8 @@ import DocumentImportModal from '@/components/DocumentImportModal';
 import OnboardingModal from '@/components/OnboardingModal';
 import FamilyTreeCanvas from '@/components/FamilyTreeCanvas';
 import WorldWebCanvas from '@/components/WorldWebCanvas';
+import TimelineCanvas from '@/components/TimelineCanvas';
+import MapCanvas from '@/components/MapCanvas';
 import Sidebar, { ViewMode } from '@/components/Sidebar';
 import AppHeader from '@/components/AppHeader';
 import EntityInspector from '@/components/EntityInspector';
@@ -31,6 +33,8 @@ import {
   mergeCategories,
 } from '@/lib/articles';
 import { computeBacklinks, extractLinkedArticleIds, resolveImportedWikiLinks } from '@/lib/links';
+import { findArticleEvents } from '@/lib/timeline';
+import { findArticleMaps } from '@/lib/mapView';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 import { useColorMode } from '@/hooks/useColorMode';
@@ -87,6 +91,8 @@ export default function Home() {
         .filter((id) => id !== activeArticle.id)
         .map((id) => ({ id, title: articles.find((a) => a.id === id)?.title }))
     : [];
+  const timelineEntries = activeArticle ? findArticleEvents(canvases, activeArticle.id) : [];
+  const mapEntries = activeArticle ? findArticleMaps(canvases, activeArticle.id) : [];
 
   // Auto-collapse side panels on narrow windows
   useEffect(() => {
@@ -353,6 +359,22 @@ export default function Home() {
                 </div>
               )}
             </div>
+          ) : activeCanvas.type === 'timeline' ? (
+            <TimelineCanvas
+              key={activeCanvas.id}
+              canvasData={activeCanvas}
+              onChange={world.updateCanvas}
+              articles={articles}
+              onOpenArticle={openArticle}
+            />
+          ) : activeCanvas.type === 'map' ? (
+            <MapCanvas
+              key={activeCanvas.id}
+              canvasData={activeCanvas}
+              onChange={world.updateCanvas}
+              articles={articles}
+              onOpenArticle={openArticle}
+            />
           ) : activeCanvas.type === 'world-web' ? (
             <WorldWebCanvas
               key={activeCanvas.id}
@@ -385,6 +407,9 @@ export default function Home() {
           backlinks={backlinks}
           outgoingLinks={outgoingLinks}
           onOpenArticle={openArticle}
+          timelineEntries={timelineEntries}
+          mapEntries={mapEntries}
+          onOpenCanvas={openCanvas}
         />
       )}
 

@@ -16,6 +16,8 @@ Gaea Forge is a privacy-first, offline-capable digital workbench designed for wr
 - 🌌 **3D Interactive Cosmos Canvas**: Real-time 3D WebGL universe powered by **Three.js** with 360° orbit rotation, category-themed glowing celestial bodies, luminous constellation beams, raycasting HUD, and cinematic galaxy auto-rotation.
 - 🌳 **Family Tree & Dynasty Canvas**: Interactive visual hierarchy editor to map genealogical lineages, mentorships, alliances, and ancestral trees.
 - 🕸️ **World Web Relationship Canvas**: Dual-mode (2D Map & 3D Cosmos) node graph for complex entity connections (alliances, rivalries, trade routes, political factions).
+- ⏳ **Timelines**: Chronologies in your world's own calendar (negative years welcome), with events grouped into eras, spans for wars and reigns, and links to articles.
+- 🗺️ **Maps**: Upload a map image, pan and zoom it, and drop pins that link places to their articles. Every article shows which timelines and maps it appears on.
 - ⚡ **Local-First Reactive Database**: Integrated with **RxDB** and **Dexie/IndexedDB**, giving zero-latency local queries and automatic state reactivity.
 - 🖥️ **Native Desktop & Web Support**: Runs as a lightweight native desktop app powered by **Tauri v2 (Rust)** or as a responsive web app with **Next.js 16 & React 19**.
 - 📦 **Data Portability**: Complete Export and Import functionality in JSON format for offline backups and sharing.

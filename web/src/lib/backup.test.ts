@@ -101,3 +101,62 @@ describe('pruneCanvasesToArticles', () => {
     expect(canvas.connections).toHaveLength(2);
   });
 });
+
+describe('timeline and map canvases', () => {
+  const timeline: CanvasData = {
+    id: 't1',
+    title: 'History',
+    type: 'timeline',
+    nodes: [],
+    connections: [],
+    events: [
+      { id: 'e1', title: 'Coronation', year: 40, month: 3, articleId: 'a1' },
+      { id: 'e2', title: 'Fall', year: -12, articleId: 'gone', description: 'Ruin' },
+    ],
+    eras: [{ id: 'x', name: 'First Age', startYear: -100, endYear: 0 }],
+    last_updated: 1,
+  };
+  const map: CanvasData = {
+    id: 'm1',
+    title: 'Realm',
+    type: 'map',
+    nodes: [{ id: 'pin', articleId: 'a1', label: 'Mira', category: 'Characters', x: 0.25, y: 0.5 }],
+    connections: [],
+    mapImage: 'data:image/png;base64,AAAA',
+    last_updated: 1,
+  };
+
+  it('round-trips through a backup', () => {
+    const backup = createBackup([article], [timeline, map]);
+    expect(parseWorldBackup(JSON.parse(JSON.stringify(backup)))?.canvases).toEqual([timeline, map]);
+  });
+
+  it('drops malformed events and eras and non-image map data', () => {
+    const parsed = parseWorldBackup({
+      format: BACKUP_FORMAT,
+      version: 1,
+      articles: [],
+      canvases: [
+        { ...timeline, events: [{ id: 'ok', title: 'Ok', year: 1 }, { id: 'bad', title: 'No year' }, null], eras: [{ name: 'No id', startYear: 1 }] },
+        { ...map, mapImage: 'javascript:alert(1)' },
+      ],
+    });
+    expect(parsed?.canvases[0].events).toEqual([{ id: 'ok', title: 'Ok', year: 1 }]);
+    expect(parsed?.canvases[0].eras).toEqual([]);
+    expect(parsed?.canvases[1].mapImage).toBeUndefined();
+  });
+
+  it('removes pins and unlinks events when their article is deleted', () => {
+    const [prunedTimeline, prunedMap] = pruneCanvasesToArticles([timeline, map], new Set(['other']));
+    expect(prunedTimeline.events).toEqual([
+      { id: 'e1', title: 'Coronation', year: 40, month: 3 },
+      { id: 'e2', title: 'Fall', year: -12, description: 'Ruin' },
+    ]);
+    expect(prunedMap.nodes).toEqual([]);
+  });
+
+  it('leaves canvases alone when all their links still exist', () => {
+    expect(pruneCanvasesToArticles([timeline, map], new Set(['a1', 'gone']))).toEqual([]);
+  });
+});
+

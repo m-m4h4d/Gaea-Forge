@@ -52,3 +52,11 @@ export async function openArticle(page: Page, title: string) {
   await page.locator('aside').first().getByRole('button', { name }).first().click();
   await expect(page.locator('.ProseMirror')).toBeVisible();
 }
+
+export async function createCanvas(page: Page, title: string, typeName: 'World Web' | 'Family Tree & Lineage' | 'Timeline' | 'Map') {
+  await page.getByTitle('Create New Canvas').click();
+  await page.getByPlaceholder(/Third Age Conflict Map/).fill(title);
+  await page.getByText(typeName, { exact: true }).click();
+  await page.getByRole('button', { name: 'Create Canvas' }).click();
+  await expect(page.locator('aside').first().getByText(title)).toBeVisible();
+}

@@ -1,5 +1,5 @@
 // Full-world backup, restore and safety snapshots for Gaea-Forge
-import { CanvasData, GaeaDatabase, LoreArticle, WorldSnapshot } from './database';
+import { CANVAS_TYPES, CanvasData, GaeaDatabase, LoreArticle, TimelineEra, TimelineEvent, WorldSnapshot } from './database';
 import { ROLES, RoleId } from './roles';
 import { sanitizeImportedHtml } from './sanitizeHtml';
 
@@ -43,7 +43,7 @@ function isCanvas(value: unknown): value is CanvasData {
   return (
     typeof c.id === 'string' &&
     typeof c.title === 'string' &&
-    (c.type === 'family-tree' || c.type === 'world-web') &&
+    CANVAS_TYPES.includes(c.type as CanvasData['type']) &&
     Array.isArray(c.nodes) &&
     Array.isArray(c.connections)
   );
@@ -66,15 +66,56 @@ function normalizeArticle(a: LoreArticle): LoreArticle {
   };
 }
 
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const optionalNumber = (v: unknown) => (isFiniteNumber(v) ? v : undefined);
+const optionalString = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+
+// Drop undefined keys so restored documents match what the app writes
+function compact<T extends object>(obj: T): T {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+function normalizeEvent(e: unknown): TimelineEvent | null {
+  if (!e || typeof e !== 'object') return null;
+  const v = e as Partial<TimelineEvent>;
+  if (typeof v.id !== 'string' || typeof v.title !== 'string' || !isFiniteNumber(v.year)) return null;
+  return compact({
+    id: v.id,
+    title: v.title,
+    year: v.year,
+    month: optionalNumber(v.month),
+    day: optionalNumber(v.day),
+    endYear: optionalNumber(v.endYear),
+    articleId: optionalString(v.articleId),
+    description: optionalString(v.description),
+  });
+}
+
+function normalizeEra(e: unknown): TimelineEra | null {
+  if (!e || typeof e !== 'object') return null;
+  const v = e as Partial<TimelineEra>;
+  if (typeof v.id !== 'string' || typeof v.name !== 'string' || !isFiniteNumber(v.startYear)) return null;
+  return compact({ id: v.id, name: v.name, startYear: v.startYear, endYear: optionalNumber(v.endYear) });
+}
+
 function normalizeCanvas(c: CanvasData): CanvasData {
-  return {
+  return compact({
     id: c.id,
     title: c.title,
     type: c.type,
     nodes: c.nodes,
     connections: c.connections,
+    events: Array.isArray(c.events)
+      ? c.events.map(normalizeEvent).filter((e): e is TimelineEvent => e !== null)
+      : undefined,
+    eras: Array.isArray(c.eras)
+      ? c.eras.map(normalizeEra).filter((e): e is TimelineEra => e !== null)
+      : undefined,
+    // Only image data URLs; anything else is dropped
+    mapImage:
+      typeof c.mapImage === 'string' && c.mapImage.startsWith('data:image/') ? c.mapImage : undefined,
     last_updated: typeof c.last_updated === 'number' ? c.last_updated : Date.now(),
-  };
+  });
 }
 
 // Returns a backup if the value is a full Gaea-Forge world backup, otherwise null.
@@ -111,7 +152,8 @@ export function downloadBackup(backup: WorldBackup) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Drop canvas nodes whose linked article no longer exists, and any connections to them.
+// Drop canvas nodes (and map pins) whose linked article no longer exists, with any
+// connections to them, and unlink timeline events from it (the event itself stays).
 // Returns only the canvases that changed.
 export function pruneCanvasesToArticles(
   canvases: CanvasData[],
@@ -123,7 +165,10 @@ export function pruneCanvasesToArticles(
     const keptNodes = canvas.nodes.filter(
       (n) => !n.articleId || existingArticleIds.has(n.articleId)
     );
-    if (keptNodes.length === canvas.nodes.length) continue;
+    const hasDanglingEvent = (canvas.events ?? []).some(
+      (e) => e.articleId && !existingArticleIds.has(e.articleId)
+    );
+    if (keptNodes.length === canvas.nodes.length && !hasDanglingEvent) continue;
 
     const keptNodeIds = new Set(keptNodes.map((n) => n.id));
     changed.push({
@@ -132,6 +177,14 @@ export function pruneCanvasesToArticles(
       connections: canvas.connections.filter(
         (c) => keptNodeIds.has(c.fromNodeId) && keptNodeIds.has(c.toNodeId)
       ),
+      ...(canvas.events && {
+        events: canvas.events.map((e) => {
+          if (!e.articleId || existingArticleIds.has(e.articleId)) return e;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { articleId, ...unlinked } = e;
+          return unlinked;
+        }),
+      }),
       last_updated: Date.now(),
     });
   }

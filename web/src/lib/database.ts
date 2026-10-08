@@ -1,5 +1,9 @@
-import { createRxDatabase, RxDatabase, RxCollection } from 'rxdb';
+import { addRxPlugin, createRxDatabase, RxCollection, RxDatabase, RxStorage } from 'rxdb';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+
+// Needed for schema version bumps (migrationStrategies)
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 export type EntityProperty = {
   key: string;
@@ -28,7 +32,9 @@ export type RelationshipType =
   | 'rival'
   | 'custom';
 
-export type CanvasType = 'family-tree' | 'world-web';
+export type CanvasType = 'family-tree' | 'world-web' | 'timeline' | 'map';
+
+export const CANVAS_TYPES: CanvasType[] = ['world-web', 'family-tree', 'timeline', 'map'];
 
 export type CanvasNode = {
   id: string;
@@ -50,12 +56,41 @@ export type CanvasConnection = {
   label?: string;
 };
 
+// A dated event on a timeline canvas. Years are plain numbers in the world's own
+// calendar and may be negative; month and day are optional refinements.
+export type TimelineEvent = {
+  id: string;
+  title: string;
+  year: number;
+  month?: number;
+  day?: number;
+  // Last year of an event that spans time (a war, a reign)
+  endYear?: number;
+  articleId?: string;
+  description?: string;
+};
+
+// A named span of years shown as a band behind events (e.g. "The Age of Ash")
+export type TimelineEra = {
+  id: string;
+  name: string;
+  startYear: number;
+  endYear?: number;
+};
+
 export type CanvasData = {
   id: string;
   title: string;
   type: CanvasType;
+  // World web / family tree: positioned nodes. Map: pins, with x and y as
+  // fractions (0-1) of the map image's width and height.
   nodes: CanvasNode[];
   connections: CanvasConnection[];
+  // Timeline canvases
+  events?: TimelineEvent[];
+  eras?: TimelineEra[];
+  // Map canvases: the map image as a data URL
+  mapImage?: string;
   last_updated: number;
 };
 
@@ -120,7 +155,8 @@ export const loreArticleSchema = {
 } as const;
 
 export const canvasSchema = {
-  version: 0,
+  // v1 added events, eras and mapImage for timeline and map canvases
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -145,6 +181,21 @@ export const canvasSchema = {
       items: {
         type: 'object'
       }
+    },
+    events: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    eras: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    mapImage: {
+      type: 'string'
     },
     last_updated: {
       type: 'number'
@@ -276,53 +327,61 @@ export const INITIAL_SEED_CANVASES: CanvasData[] = [
   },
 ];
 
+// Migrations for each schema version bump: { [newVersion]: (oldDoc) => newDoc }.
+// Never change a schema without bumping its version and adding a strategy here,
+// or existing databases fail to open.
+export const canvasMigrationStrategies = {
+  // v0 -> v1 only added optional fields
+  1: (oldDoc: CanvasData) => oldDoc,
+};
+
+// Open (or create) the database with every collection, migrating and seeding as
+// needed. Separate from getDatabase so tests can pass in-memory storage.
+export async function openGaeaDatabase(name: string, storage: RxStorage<unknown, unknown>): Promise<GaeaDatabase> {
+  const db = await createRxDatabase<GaeaDatabaseCollections>({ name, storage });
+
+  await db.addCollections({
+    articles: {
+      schema: loreArticleSchema,
+    },
+    canvases: {
+      schema: canvasSchema,
+      migrationStrategies: canvasMigrationStrategies,
+    },
+    snapshots: {
+      schema: snapshotSchema,
+    },
+  });
+
+  // Seed if empty
+  const count = await db.articles.count().exec();
+  if (count === 0) {
+    await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
+  }
+
+  const canvasCount = await db.canvases.count().exec();
+  if (canvasCount === 0) {
+    await db.canvases.bulkInsert(loadLegacyCanvases() ?? INITIAL_SEED_CANVASES);
+    try {
+      localStorage.removeItem(LEGACY_CANVAS_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  return db;
+}
+
 export const getDatabase = async (): Promise<GaeaDatabase> => {
   if (typeof window === 'undefined') {
     throw new Error('RxDB can only be initialized on the client side');
   }
 
   if (!dbPromise) {
-    dbPromise = (async () => {
-      try {
-        const db = await createRxDatabase<GaeaDatabaseCollections>({
-          name: 'gaeafdb_v6',
-          storage: getRxStorageDexie(),
-        });
-
-        await db.addCollections({
-          articles: {
-            schema: loreArticleSchema,
-          },
-          canvases: {
-            schema: canvasSchema,
-          },
-          snapshots: {
-            schema: snapshotSchema,
-          },
-        });
-
-        // Seed if empty
-        const count = await db.articles.count().exec();
-        if (count === 0) {
-          await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
-        }
-
-        const canvasCount = await db.canvases.count().exec();
-        if (canvasCount === 0) {
-          await db.canvases.bulkInsert(loadLegacyCanvases() ?? INITIAL_SEED_CANVASES);
-          try {
-            localStorage.removeItem(LEGACY_CANVAS_STORAGE_KEY);
-          } catch {
-            // ignore
-          }
-        }
-
-        return db;
-      } catch (err) {
-        dbPromise = null;
-        throw err;
-      }
-    })();
+    dbPromise = openGaeaDatabase('gaeafdb_v6', getRxStorageDexie()).catch((err) => {
+      dbPromise = null;
+      throw err;
+    });
   }
   return dbPromise;
 };

@@ -40,7 +40,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 2. **Create articles** with the **New** button at the bottom of the sidebar, or the **+** next to a category. Use the inspector on the right for tags, properties and artwork.
 3. **Link your lore**: in the editor, type `[[` and pick an article. The inspector's **Mentioned In** list shows backlinks.
 4. **Add canvases** with **+ New** under *World Canvases*: a World Web, Family Tree, Timeline or Map. Canvases are listed in the sidebar; switch between the editor and the active canvas with the tabs in the header.
-5. **Import and back up** with the **Import** button at the top of the sidebar. The **Document Import** tab brings in files; **Backup & Restore** downloads a full backup and lists your safety snapshots.
+5. **Import and back up** with the **Import** button at the top of the sidebar. The **Document Import** tab brings in files; **Backup & Restore** saves a full backup (the desktop app asks where to save it) and lists your safety snapshots.
 6. **Jump around** with `Ctrl/Cmd+K`: type part of a name and press Enter.
 7. **Switch themes** with the sun/moon button in the header.
 
@@ -49,9 +49,9 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 ## 🔒 Your Data
 
 - Everything is stored locally in **IndexedDB** (via RxDB): in your browser profile when using the web version, or in the desktop app's own data folder. Nothing is uploaded anywhere.
-- Clearing your browser's site data (or the desktop app's data) deletes your world, so **download a backup** from *Import → Backup & Restore* regularly.
+- Clearing your browser's site data (or the desktop app's data) deletes your world, so **save a backup** from *Import → Backup & Restore* regularly.
 - Images (cover art and maps) are stored once, separately from the text, and large ones are scaled down on upload (covers to 2048px, maps to 4096px on their longest side).
-- Backups are plain JSON that include your images. Restoring one replaces your current world, after saving a safety snapshot of it first.
+- Backups are plain JSON that include your images. The browser version downloads them; the desktop app opens a Save dialog so you choose where the file goes. Restoring one replaces your current world, after saving a safety snapshot of it first.
 - When a new version changes how data is stored, existing data is migrated automatically on first launch.
 
 ---
@@ -149,7 +149,7 @@ npm run build       # Static export to web/out
 npm run test:e2e    # End-to-end tests (Playwright, runs against web/out)
 ```
 
-The first time you run the end-to-end tests, install the browser with `npx playwright install chromium` from `web/`. CI runs all of the above on every pull request and on pushes to `master`.
+The first time you run the end-to-end tests, install the browser with `npx playwright install chromium` from `web/`. CI runs all of the above on every pull request and on pushes to `master`, and also builds the desktop app on Linux (`npm run tauri build -- --no-bundle`) and runs Clippy on the Rust code.
 
 ---
 

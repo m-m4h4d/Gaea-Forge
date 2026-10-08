@@ -12,13 +12,14 @@ Run from the repo root (npm workspaces) or from `web/`:
 | :--- | :--- |
 | Dev server (browser) | `npm run dev` |
 | Desktop app (dev) | `npm run tauri dev` (root only) |
+| Desktop build check | `npm run tauri build -- --no-bundle` (root only; needs Rust and the Tauri system libraries) |
 | Lint | `npm run lint` |
 | Type-check | `npm run typecheck` |
 | Unit tests (Vitest) | `npm test` |
 | Static build to `web/out` | `npm run build` |
 | End-to-end tests (Playwright) | `npm run test:e2e` (needs `npm run build` first) |
 
-CI (`.github/workflows/ci.yml`) runs all of these on every pull request.
+CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus a Linux desktop build and `cargo clippy -- -D warnings` in `src-tauri`.
 
 ## Layout
 
@@ -57,6 +58,7 @@ web/src/
     images.ts             Reading (and downscaling) uploaded images
     quickSwitch.ts        Quick switcher ranking and recent items
     threeDispose.ts       Freeing Three.js GPU resources (geometries, materials, textures)
+    saveFile.ts           Saving files: native Save dialog in the desktop app, download in browsers
     assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
 web/public/theme-init.js  Applies the saved color mode and role colors before first paint
 web/e2e/                  Playwright tests against the static export (fixtures.ts has shared helpers)
@@ -106,6 +108,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Never use `window.confirm`, `alert` or `prompt` (the e2e fixtures fail on native dialogs). Ask with `useConfirm()` (`tone: 'danger'` for destructive actions). Prefer Undo over asking: deleting whole articles or canvases happens at once and shows a notice with an Undo action (`showNotice(kind, text, { label, onClick })`).
 - Build new modals on `components/dialogs/Modal.tsx` so they get Escape and keyboard focus handling; pass `initialFocus` instead of using `autoFocus`.
 - Three.js objects removed from the 3D scene must be freed with `removeAndDispose`/`disposeObject3D` (`lib/threeDispose.ts`); removing them from the scene alone leaks GPU memory. The scene setup effect must not depend on UI state, or the scene is rebuilt without its nodes. `e2e/cosmos.spec.ts` checks the live geometry count (`data-gpu-geometries`).
+- Save files the user keeps with `saveJsonFile` (`lib/saveFile.ts`), never `<a download>` directly: downloads are unreliable in the desktop webviews, so the desktop app calls the `save_json_file` Rust command (`src-tauri/src/lib.rs`). Keep `@tauri-apps/api` on the same major.minor version as the `tauri` crate; the Tauri CLI fails the build otherwise. `e2e/desktop.spec.ts` fakes the Tauri bridge to test the desktop path.
 - New behavior needs a test: a Vitest unit test for logic in `lib/`, and a Playwright test in `e2e/` for user-visible flows that touch persistence.
 
 @AGENTS.md

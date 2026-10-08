@@ -21,7 +21,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 🗺️ **Maps**: Upload a map image, pan and zoom it, and drop pins that link places to their articles. Every article shows which timelines and maps it appears on.
 
 ### Import, backup & safety
-- 📑 **Document Import**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt` and `.json`. Multi-topic documents are split into separate articles, `Key: Value` lines become properties, `[[Title]]` references become links, and you review everything before it is saved. Imported HTML is sanitized.
+- 📑 **Document Import**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt` and `.json`. Multi-topic documents are split into separate articles by their headings, `Key: Value` lines become properties, and `[[Title]]` references become links. Entries are sorted into your categories by keyword rules you can edit, and you review everything before it is saved. Imported HTML is sanitized.
 - 📦 **Full Backups**: Export your whole world (articles, artwork, canvases and workspace role) to one `.json` file and restore it later, or merge just its articles.
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
 - 💾 **Autosave with Recovery**: Changes save automatically (`Ctrl/Cmd+S` saves immediately), and edits made just before the app closes are recovered on the next start.

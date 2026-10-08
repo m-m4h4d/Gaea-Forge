@@ -3,7 +3,9 @@
 import React, { useState, useRef } from 'react';
 import { LoreArticle, WorldSnapshot } from '@/lib/database';
 import { ROLES, RoleId } from '@/lib/roles';
-import { articlesToDrafts, parseDocumentFile, ParsedEntityDraft } from '@/lib/documentParser';
+import { articlesToDrafts, parseDocumentFile, ParsedEntityDraft, recategorizeDrafts } from '@/lib/documentParser';
+import { defaultImportRules, ImportRule, loadImportRules, saveImportRules } from '@/lib/importRules';
+import ImportRulesEditor from './ImportRulesEditor';
 import { parseWorldBackup, WorldBackup } from '@/lib/backup';
 import { FileUp, HardDriveDownload, Inbox, SlidersHorizontal, Sparkles, TriangleAlert, X } from 'lucide-react';
 
@@ -52,11 +54,38 @@ export default function DocumentImportModal({
   // Full world backup detected in an uploaded .json file
   const [pendingBackup, setPendingBackup] = useState<WorldBackup | null>(null);
   const [isWorking, setIsWorking] = useState(false);
+
+  // Keyword rules for sorting entries into categories; loaded from storage per role
+  const [rulesByRole, setRulesByRole] = useState<Partial<Record<RoleId, ImportRule[]>>>({});
+  // Bumped on reset so the editor's text fields reload
+  const [rulesVersion, setRulesVersion] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const rules = rulesByRole[activeRole] ?? loadImportRules(activeRole);
+
+  const applyRules = (next: ImportRule[] | null) => {
+    saveImportRules(activeRole, next);
+    const effective = next ?? defaultImportRules(activeRole);
+    setRulesByRole((prev) => ({ ...prev, [activeRole]: effective }));
+    setParsedDrafts((drafts) => recategorizeDrafts(drafts, activeRole, effective));
+  };
+
+  const rulesEditor = (
+    <ImportRulesEditor
+      key={`${activeRole}-${rulesVersion}`}
+      rules={rules}
+      saveLabel={parsedDrafts.length > 0 ? 'Save & Re-sort Entries' : 'Save Keywords'}
+      onSave={applyRules}
+      onReset={() => {
+        applyRules(null);
+        setRulesVersion((v) => v + 1);
+      }}
+    />
+  );
 
   // Handle file selection
   const handleProcessFile = async (file: File) => {
@@ -74,7 +103,7 @@ export default function DocumentImportModal({
         }
       }
 
-      const drafts = await parseDocumentFile(file, activeRole);
+      const drafts = await parseDocumentFile(file, activeRole, rules);
       if (drafts.length === 0) {
         throw new Error('No readable text or entities could be parsed from this file.');
       }
@@ -125,7 +154,8 @@ export default function DocumentImportModal({
 
   const handleUpdateDraftCategory = (id: string, newCategory: string) => {
     setParsedDrafts((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, category: newCategory } : d))
+      // A hand-picked category is kept when entries are re-sorted
+      prev.map((d) => (d.id === id ? { ...d, category: newCategory, categoryLocked: true } : d))
     );
   };
 
@@ -432,7 +462,7 @@ export default function DocumentImportModal({
                     <strong>Multi-Entity Splitting:</strong> If your document contains multiple characters, locations, governments, or items, each is separated into its own clean article.
                   </li>
                   <li>
-                    <strong>Auto-Categorization:</strong> Matches entities to your active categories (e.g. Characters, Realms, Magic, Factions).
+                    <strong>Auto-Categorization:</strong> Sorts entries into your workspace&apos;s categories using keywords you can adjust below.
                   </li>
                   <li>
                     <strong>Property Extraction:</strong> Automatically detects key-value properties (e.g., <em>Capital City: Aethelia</em>, <em>Arcana: Fire</em>) and converts them into structured attributes.
@@ -442,6 +472,8 @@ export default function DocumentImportModal({
                   </li>
                 </ul>
               </div>
+
+              {rulesEditor}
             </div>
           ) : (
             /* REVIEW & SELECTION VIEW */
@@ -483,6 +515,8 @@ export default function DocumentImportModal({
                   </button>
                 </div>
               </div>
+
+              {rulesEditor}
 
               {/* Filter Search Input */}
               <div className="flex items-center justify-between gap-4">
@@ -527,6 +561,7 @@ export default function DocumentImportModal({
                   return (
                     <div
                       key={draft.id}
+                      data-testid="import-draft"
                       className={`border rounded-2xl p-3.5 transition-all ${
                         draft.selected
                           ? 'bg-slate-950/70 border-slate-700/80 shadow-md'

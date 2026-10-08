@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { test as base, expect, Page } from '@playwright/test';
 
 // Every test starts with a fresh browser profile (empty IndexedDB), onboarding
@@ -60,3 +61,22 @@ export async function createCanvas(page: Page, title: string, typeName: 'World W
   await page.getByRole('button', { name: 'Create Canvas' }).click();
   await expect(page.locator('aside').first().getByText(title)).toBeVisible();
 }
+// Draw a test map in the browser and save it as a PNG file
+export async function makeImage(page: import('@playwright/test').Page, path: string, width: number, height: number) {
+  const dataUrl = await page.evaluate(
+    ([w, h]) => {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#7aa874';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#3b6ea8';
+      ctx.fillRect(w / 4, h / 4, w / 2, h / 2);
+      return c.toDataURL('image/png');
+    },
+    [width, height]
+  );
+  await writeFile(path, Buffer.from(dataUrl.split(',')[1], 'base64'));
+}
+

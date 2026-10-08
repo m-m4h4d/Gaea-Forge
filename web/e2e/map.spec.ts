@@ -1,24 +1,4 @@
-import { writeFile } from 'node:fs/promises';
-import { createCanvas, expect, openApp, openArticle, test } from './fixtures';
-
-// Draw a test map in the browser and save it as a PNG file
-async function makeImage(page: import('@playwright/test').Page, path: string, width: number, height: number) {
-  const dataUrl = await page.evaluate(
-    ([w, h]) => {
-      const c = document.createElement('canvas');
-      c.width = w;
-      c.height = h;
-      const ctx = c.getContext('2d')!;
-      ctx.fillStyle = '#7aa874';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#3b6ea8';
-      ctx.fillRect(w / 4, h / 4, w / 2, h / 2);
-      return c.toDataURL('image/png');
-    },
-    [width, height]
-  );
-  await writeFile(path, Buffer.from(dataUrl.split(',')[1], 'base64'));
-}
+import { createCanvas, expect, makeImage, openApp, openArticle, test } from './fixtures';
 
 test('pins link places to articles, can be moved, and survive reloads', async ({ page }, testInfo) => {
   await openApp(page);

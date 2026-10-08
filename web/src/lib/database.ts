@@ -1,6 +1,7 @@
 import { addRxPlugin, createRxDatabase, RxCollection, RxDatabase, RxStorage } from 'rxdb';
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+import { Asset, assetSchema, moveInlineImagesToAssets, sweepUnusedAssets } from './assets';
 
 // Needed for schema version bumps (migrationStrategies)
 addRxPlugin(RxDBMigrationSchemaPlugin);
@@ -246,10 +247,12 @@ export const snapshotSchema = {
 export type LoreArticleCollection = RxCollection<LoreArticle>;
 export type CanvasCollection = RxCollection<CanvasData>;
 export type SnapshotCollection = RxCollection<WorldSnapshot>;
+export type AssetCollection = RxCollection<Asset>;
 export type GaeaDatabaseCollections = {
   articles: LoreArticleCollection;
   canvases: CanvasCollection;
   snapshots: SnapshotCollection;
+  assets: AssetCollection;
 };
 export type GaeaDatabase = RxDatabase<GaeaDatabaseCollections>;
 
@@ -352,6 +355,9 @@ export async function openGaeaDatabase(name: string, storage: RxStorage<unknown,
     snapshots: {
       schema: snapshotSchema,
     },
+    assets: {
+      schema: assetSchema,
+    },
   });
 
   // Seed if empty
@@ -368,6 +374,15 @@ export async function openGaeaDatabase(name: string, storage: RxStorage<unknown,
     } catch {
       // ignore
     }
+  }
+
+  // Images saved inline by older versions move to the assets collection. A failure
+  // here leaves the images inline (still working), so it must not block opening.
+  try {
+    await moveInlineImagesToAssets(db);
+    await sweepUnusedAssets(db);
+  } catch (e) {
+    console.error('Could not tidy stored images:', e);
   }
 
   return db;

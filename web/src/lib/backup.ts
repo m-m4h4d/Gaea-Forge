@@ -2,6 +2,7 @@
 import { CANVAS_TYPES, CanvasData, GaeaDatabase, LoreArticle, TimelineEra, TimelineEvent, WorldSnapshot } from './database';
 import { ROLES, RoleId } from './roles';
 import { sanitizeImportedHtml } from './sanitizeHtml';
+import { externalizeImages, inlineImages, isImageDataUrl } from './assets';
 
 export const BACKUP_FORMAT = 'gaea-forge-backup';
 export const BACKUP_VERSION = 1;
@@ -60,7 +61,8 @@ function normalizeArticle(a: LoreArticle): LoreArticle {
     properties: Array.isArray(a.properties)
       ? a.properties.filter((p) => p && typeof p.key === 'string' && typeof p.value === 'string')
       : [],
-    ...(typeof a.coverImage === 'string' ? { coverImage: a.coverImage } : {}),
+    // Only image data; anything else is dropped
+    ...(isImageDataUrl(a.coverImage) ? { coverImage: a.coverImage } : {}),
     isPinned: Boolean(a.isPinned),
     last_updated: typeof a.last_updated === 'number' ? a.last_updated : Date.now(),
   };
@@ -200,15 +202,17 @@ function assertBulkOk(result: { error: unknown[] }, action: string) {
   }
 }
 
+// The whole world as stored, with images inlined so backups and snapshots are self-contained
 export async function readWorld(db: GaeaDatabase) {
   const [articleDocs, canvasDocs] = await Promise.all([
     db.articles.find().exec(),
     db.canvases.find().exec(),
   ]);
-  return {
-    articles: articleDocs.map((d) => d.toJSON() as LoreArticle),
-    canvases: canvasDocs.map((d) => d.toJSON() as CanvasData),
-  };
+  return inlineImages(
+    db,
+    articleDocs.map((d) => d.toJSON() as LoreArticle),
+    canvasDocs.map((d) => d.toJSON() as CanvasData)
+  );
 }
 
 // Store the current world as a snapshot, keeping only the newest MAX_SNAPSHOTS
@@ -250,14 +254,16 @@ export async function replaceWorld(
   articles: LoreArticle[],
   canvases: CanvasData[]
 ) {
+  // Store images first: if that fails, the current world has not been touched
+  const next = await externalizeImages(db, articles, canvases);
   const [oldArticles, oldCanvases] = await Promise.all([
     db.articles.find().exec(),
     db.canvases.find().exec(),
   ]);
   assertBulkOk(await db.articles.bulkRemove(oldArticles.map((d) => d.primary)), 'Removing articles');
   assertBulkOk(await db.canvases.bulkRemove(oldCanvases.map((d) => d.primary)), 'Removing canvases');
-  assertBulkOk(await db.articles.bulkInsert(articles), 'Writing articles');
-  assertBulkOk(await db.canvases.bulkInsert(canvases), 'Writing canvases');
+  assertBulkOk(await db.articles.bulkInsert(next.articles), 'Writing articles');
+  assertBulkOk(await db.canvases.bulkInsert(next.canvases), 'Writing canvases');
 }
 
 export async function upsertArticles(db: GaeaDatabase, articles: LoreArticle[]) {

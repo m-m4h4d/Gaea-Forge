@@ -32,6 +32,7 @@ web/src/
     useNotice.ts          Transient success/error toast
     useColorMode.ts       Light/dark/system color mode
     useStoredValue.ts     localStorage values read without hydration mismatches
+    useImageUrl.ts        Displayable URL for an image field (asset reference or legacy inline data)
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
     WorldWebCanvas(3D).tsx, FamilyTreeCanvas.tsx, TimelineCanvas.tsx, MapCanvas.tsx
     canvasTypes.ts        Icon, name and description per canvas type
@@ -50,6 +51,7 @@ web/src/
     timeline.ts           Timeline ordering, eras, date labels, form validation
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
+    assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
 web/public/theme-init.js  Applies the saved color mode and role colors before first paint
 web/e2e/                  Playwright tests against the static export (fixtures.ts has shared helpers)
 ```
@@ -58,7 +60,8 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 
 ## Data model and persistence
 
-- RxDB with the Dexie (IndexedDB) storage, database `gaeafdb_v6`, collections `articles`, `canvases` and `snapshots` (`lib/database.ts`).
+- RxDB with the Dexie (IndexedDB) storage, database `gaeafdb_v6`, collections `articles`, `canvases`, `snapshots` and `assets` (`lib/database.ts`).
+- Images live once in `assets` (`lib/assets.ts`). `coverImage` and `mapImage` hold an `asset:<id>` reference; older data may still hold an inline `data:image/` URL, which `moveInlineImagesToAssets` converts when the database opens. Display images with `useImageUrl`, store new ones with `storeImage`, and never put image data into article or canvas records. Backups and snapshots inline the image data (`readWorld`), and `replaceWorld`/imports store it again. Unreferenced assets are deleted after a one-day grace period, because a recovery journal may still point at a fresh upload.
 - **Never lose user data.** This is the main rule of the codebase:
   - Changing a schema means bumping its `version` and adding a `migrationStrategies` entry (see `canvasMigrationStrategies` in `database.ts`), plus a test in `database.test.ts` that opens data saved with the previous version. Do not rename the database to start fresh.
   - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which waits for pending writes and saves a snapshot first.

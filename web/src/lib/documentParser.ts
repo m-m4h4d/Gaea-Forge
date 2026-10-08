@@ -1,6 +1,7 @@
 // Intelligent Multi-Format Document Importer & Multi-Entity Segmenter
 import { EntityProperty, LoreArticle } from './database';
 import { RoleId, mapSemanticToRoleCategory } from './roles';
+import { sanitizeImportedHtml } from './sanitizeHtml';
 
 export interface ParsedEntityDraft {
   id: string;
@@ -134,8 +135,12 @@ async function extractTextFromPdf(arrayBuffer: ArrayBuffer): Promise<string> {
   try {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
-    if (!pdfjs.GlobalWorkerOptions.workerSrc && typeof window !== 'undefined') {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.min.mjs`;
+    // Worker is bundled from node_modules so PDF import works offline and under a self-only CSP.
+    if (!pdfjs.GlobalWorkerOptions.workerPort && typeof window !== 'undefined') {
+      pdfjs.GlobalWorkerOptions.workerPort = new Worker(
+        new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url),
+        { type: 'module' },
+      );
     }
 
     const loadingTask = pdfjs.getDocument({
@@ -550,7 +555,9 @@ export async function parseDocumentFile(file: File, activeRole: RoleId): Promise
         semanticCategory: 'notes',
         tags: item.tags || [],
         properties: item.properties || [],
-        contentHtml: item.content || `<h1>${escapeHtml(item.title || '')}</h1>`,
+        contentHtml: sanitizeImportedHtml(
+          typeof item.content === 'string' && item.content ? item.content : `<h1>${escapeHtml(String(item.title || ''))}</h1>`,
+        ),
         rawText: '',
         selected: true,
       }));
@@ -569,7 +576,7 @@ export async function parseDocumentFile(file: File, activeRole: RoleId): Promise
     const segments = segmentDocumentText(text, activeRole);
     // If only one segment and mammoth generated clean HTML, preserve it
     if (segments.length === 1 && html) {
-      segments[0].contentHtml = html;
+      segments[0].contentHtml = sanitizeImportedHtml(html);
     }
     return segments;
   }

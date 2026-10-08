@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { LoreArticle } from '@/lib/database';
+import { sanitizeImportedHtml } from '@/lib/sanitizeHtml';
 
 interface ExportImportModalProps {
   isOpen: boolean;
@@ -51,7 +52,11 @@ export default function ExportImportModal({
           throw new Error('Invalid format: Items must contain at least "id", "title", and "category".');
         }
 
-        onImport(parsed as LoreArticle[]);
+        const sanitized = (parsed as LoreArticle[]).map((item) => ({
+          ...item,
+          content: sanitizeImportedHtml(typeof item.content === 'string' ? item.content : ''),
+        }));
+        onImport(sanitized);
         setImportSuccess(`Successfully imported ${parsed.length} world articles!`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to parse JSON file';

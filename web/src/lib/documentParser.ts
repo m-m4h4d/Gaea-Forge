@@ -11,6 +11,7 @@ export interface ParsedEntityDraft {
   properties: EntityProperty[];
   contentHtml: string;
   rawText: string;
+  coverImage?: string;
   selected: boolean;
 }
 
@@ -394,7 +395,8 @@ export function segmentDocumentText(text: string, activeRole: RoleId): ParsedEnt
   function isMajorSectionHeader(line: string): boolean {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 50) return false;
-    if (/^#{1,2}\s+[A-Za-z0-9]/.test(trimmed)) return true;
+    // Markdown H1 opens a section; H2-H4 are entities (see isEntityHeader)
+    if (/^#\s+[A-Za-z0-9]/.test(trimmed)) return true;
     const lower = trimmed.toLowerCase().replace(/[:#]/g, '').trim();
     return KNOWN_SECTIONS.includes(lower);
   }
@@ -533,28 +535,49 @@ export function segmentDocumentText(text: string, activeRole: RoleId): ParsedEnt
   });
 }
 
+// Turn already-structured articles (e.g. from a JSON export) into reviewable drafts
+export function articlesToDrafts(items: unknown[], activeRole: RoleId): ParsedEntityDraft[] {
+  return items
+    .filter((item): item is Partial<LoreArticle> => !!item && typeof item === 'object')
+    .map((item, idx) => ({
+      id: typeof item.id === 'string' && item.id ? item.id : `json-import-${Date.now()}-${idx}`,
+      title: typeof item.title === 'string' && item.title ? item.title : 'Untitled Lore',
+      category:
+        typeof item.category === 'string' && item.category
+          ? item.category
+          : mapSemanticToRoleCategory('notes', activeRole),
+      semanticCategory: 'notes' as const,
+      tags: Array.isArray(item.tags) ? item.tags.filter((t) => typeof t === 'string') : [],
+      properties: Array.isArray(item.properties)
+        ? item.properties.filter((p) => p && typeof p.key === 'string' && typeof p.value === 'string')
+        : [],
+      contentHtml:
+        typeof item.content === 'string' && item.content
+          ? item.content
+          : `<h1>${escapeHtml(typeof item.title === 'string' ? item.title : '')}</h1>`,
+      rawText: '',
+      ...(typeof item.coverImage === 'string' ? { coverImage: item.coverImage } : {}),
+      selected: true,
+    }));
+}
+
 // Master file parser for File objects (.pdf, .docx, .doc, .md, .txt, .json)
 export async function parseDocumentFile(file: File, activeRole: RoleId): Promise<ParsedEntityDraft[]> {
   const fileName = file.name.toLowerCase();
   const arrayBuffer = await file.arrayBuffer();
 
-  // 1. JSON (Gaea-Forge export backup or raw lore list)
+  // 1. JSON (Gaea-Forge backup, legacy article-list export, or raw lore list)
   if (fileName.endsWith('.json')) {
     const text = new TextDecoder('utf-8').decode(arrayBuffer);
-    const parsed = JSON.parse(text);
+    const parsed: unknown = JSON.parse(text);
     if (Array.isArray(parsed)) {
-      return parsed.map((item: Partial<LoreArticle>, idx: number) => ({
-        id: item.id || `json-import-${Date.now()}-${idx}`,
-        title: item.title || 'Untitled Lore',
-        category: item.category || mapSemanticToRoleCategory('notes', activeRole),
-        semanticCategory: 'notes',
-        tags: item.tags || [],
-        properties: item.properties || [],
-        contentHtml: item.content || `<h1>${escapeHtml(item.title || '')}</h1>`,
-        rawText: '',
-        selected: true,
-      }));
+      return articlesToDrafts(parsed, activeRole);
     }
+    const wrapped = (parsed as { articles?: unknown } | null)?.articles;
+    if (Array.isArray(wrapped)) {
+      return articlesToDrafts(wrapped, activeRole);
+    }
+    throw new Error('This JSON file is not a Gaea-Forge backup or a list of articles.');
   }
 
   // 2. PDF Document

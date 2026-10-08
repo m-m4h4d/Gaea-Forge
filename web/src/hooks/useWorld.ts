@@ -21,10 +21,10 @@ import {
   readWorld,
   replaceWorld,
   upsertArticles,
-  upsertCanvases,
 } from '@/lib/backup';
 import { RoleId } from '@/lib/roles';
 import { useArticleSaver } from './useArticleSaver';
+import { useCanvasSaver } from './useCanvasSaver';
 import { Notify } from './useNotice';
 
 // Owns the local database and the world's articles and canvases. State updates
@@ -39,6 +39,9 @@ export function useWorld(notify: Notify) {
 
   const saver = useArticleSaver(db);
   const { mergeWithPending } = saver;
+
+  const canvasSaver = useCanvasSaver(db, (message) => notify('error', message));
+  const { mergeWithPending: mergeCanvasesWithPending } = canvasSaver;
 
   useEffect(() => {
     let isMounted = true;
@@ -62,7 +65,7 @@ export function useWorld(notify: Notify) {
           database.canvases.find().$.subscribe((docs) => {
             // Skip the transient empty state while a world is being replaced
             if (isMounted && docs && docs.length > 0) {
-              setCanvases(docs.map((doc) => doc.toJSON() as CanvasData));
+              setCanvases(mergeCanvasesWithPending(docs.map((doc) => doc.toJSON() as CanvasData)));
             }
           })
         );
@@ -78,7 +81,7 @@ export function useWorld(notify: Notify) {
       isMounted = false;
       subscriptions.forEach((s) => s.unsubscribe());
     };
-  }, [mergeWithPending, notify]);
+  }, [mergeWithPending, mergeCanvasesWithPending, notify]);
 
   // ---- Articles ----
 
@@ -125,6 +128,7 @@ export function useWorld(notify: Notify) {
 
   // ---- Canvases ----
 
+  // Update canvases in state immediately; writes are queued in order
   const saveCanvases = async (changed: CanvasData[]) => {
     if (changed.length === 0) return;
     const byId = new Map(changed.map((c) => [c.id, c]));
@@ -132,13 +136,7 @@ export function useWorld(notify: Notify) {
       ...changed.filter((c) => !prev.some((p) => p.id === c.id)),
       ...prev.map((c) => byId.get(c.id) ?? c),
     ]);
-    if (!db) return;
-    try {
-      await upsertCanvases(db, changed);
-    } catch (e) {
-      console.error('Error saving canvases:', e);
-      notify('error', 'Could not save canvas changes.');
-    }
+    await canvasSaver.save(changed);
   };
 
   const updateCanvas = (canvas: CanvasData) => saveCanvases([{ ...canvas, last_updated: Date.now() }]);
@@ -158,14 +156,7 @@ export function useWorld(notify: Notify) {
 
   const deleteCanvas = (id: string) => {
     setCanvases((prev) => prev.filter((c) => c.id !== id));
-    if (!db) return;
-    db.canvases
-      .findOne(id)
-      .remove()
-      .catch((e) => {
-        console.error('Failed to delete canvas:', e);
-        notify('error', 'Could not delete the canvas.');
-      });
+    canvasSaver.remove(id);
   };
 
   // ---- Backup, import and restore ----
@@ -173,6 +164,7 @@ export function useWorld(notify: Notify) {
   const exportBackup = async (roleId: RoleId) => {
     // Write pending edits first so the backup matches what is on screen
     await saver.flush();
+    await canvasSaver.settle();
     try {
       const world = db ? await readWorld(db) : { articles, canvases };
       downloadBackup(createBackup(world.articles, world.canvases, roleId));
@@ -201,7 +193,9 @@ export function useWorld(notify: Notify) {
   ) => {
     if (!db) throw new Error('The local database is not available, so nothing was changed.');
 
+    // Write pending edits first so the snapshot holds the latest world
     await saver.flush();
+    await canvasSaver.settle();
     try {
       await createSnapshot(db, snapshotReason, roleId);
     } catch (e) {
@@ -210,6 +204,8 @@ export function useWorld(notify: Notify) {
     }
 
     saver.discard(articles.map((a) => a.id));
+    // Forget unconfirmed canvas versions so they can't override the replacement
+    canvasSaver.clear();
     try {
       await replaceWorld(db, nextArticles, nextCanvases);
     } catch (e) {

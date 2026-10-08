@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CanvasType } from '@/lib/database';
-import { GitFork, Network, Palette } from 'lucide-react';
+import { CANVAS_TYPES, CanvasType } from '@/lib/database';
+import { Palette } from 'lucide-react';
+import { CANVAS_TYPE_INFO } from './canvasTypes';
 
 interface NewCanvasModalProps {
   isOpen: boolean;
@@ -64,39 +65,26 @@ export default function NewCanvasModal({
               Canvas Type
             </label>
             <div className="space-y-2">
-              <label
-                onClick={() => setType('world-web')}
-                className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
-                  type === 'world-web'
-                    ? 'bg-gold/20 border-gold text-gold ring-1 ring-gold/40'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}
-              >
-                <Network size={24} aria-hidden />
-                <div className="flex-1">
-                  <div className="font-bold text-xs">Master World Web</div>
-                  <div className="text-[11px] text-slate-400">
-                    Network graph connecting all articles, locations, factions & artifacts in your universe.
-                  </div>
-                </div>
-              </label>
-
-              <label
-                onClick={() => setType('family-tree')}
-                className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
-                  type === 'family-tree'
-                    ? 'bg-gold/20 border-gold text-gold ring-1 ring-gold/40'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
-                }`}
-              >
-                <GitFork size={24} aria-hidden />
-                <div className="flex-1">
-                  <div className="font-bold text-xs">Family Tree & Lineage</div>
-                  <div className="text-[11px] text-slate-400">
-                    Hierarchical character tree for marriages, parentage, ancestors, and bloodlines.
-                  </div>
-                </div>
-              </label>
+              {CANVAS_TYPES.map((canvasType) => {
+                const info = CANVAS_TYPE_INFO[canvasType];
+                return (
+                  <label
+                    key={canvasType}
+                    onClick={() => setType(canvasType)}
+                    className={`p-3 rounded-xl border flex items-center gap-3 cursor-pointer transition-all ${
+                      type === canvasType
+                        ? 'bg-gold/20 border-gold text-gold ring-1 ring-gold/40'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }`}
+                  >
+                    <info.icon size={24} aria-hidden />
+                    <div className="flex-1">
+                      <div className="font-bold text-xs">{info.name}</div>
+                      <div className="text-[11px] text-slate-400">{info.description}</div>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

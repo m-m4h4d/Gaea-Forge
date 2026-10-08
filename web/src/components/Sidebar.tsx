@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { CanvasData, LoreArticle } from '@/lib/database';
-import { ChevronDown, ChevronRight, GitFork, Inbox, Network, Palette, PanelLeftClose, Pin, Plus, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Inbox, Palette, PanelLeftClose, Pin, Plus, Search, X } from 'lucide-react';
+import { CANVAS_TYPE_INFO } from './canvasTypes';
 
 export type ViewMode = 'editor' | 'canvas';
 
@@ -161,11 +162,11 @@ export default function Sidebar({
                       }`}
                     >
                       <span className="truncate flex items-center gap-1.5">
-                        {canvas.type === 'world-web' ? <Network size={13} aria-hidden /> : <GitFork size={13} aria-hidden />}
+                        {React.createElement(CANVAS_TYPE_INFO[canvas.type].icon, { size: 13, 'aria-hidden': true })}
                         {canvas.title}
                       </span>
                       <span className="text-[10px] opacity-75 shrink-0 uppercase tracking-tighter ml-1">
-                        {canvas.type === 'world-web' ? 'Web' : 'Tree'}
+                        {CANVAS_TYPE_INFO[canvas.type].badge}
                       </span>
                     </button>
 

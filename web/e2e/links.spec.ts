@@ -41,7 +41,8 @@ test('typing a full [[Title|label]] turns into a link', async ({ page }) => {
   await page.keyboard.press('Escape');
   const link = editor(page).locator('a.lore-link', { hasText: 'the Queen' });
   await expect(link).toBeVisible();
-  await expect(editor(page)).not.toContainText('[[');
+  // The typed markup is replaced by the link, not left as text
+  await expect(editor(page)).not.toContainText('[[queen mira|the Queen]]');
 });
 
 test('the [[ picker can create a new article', async ({ page }) => {

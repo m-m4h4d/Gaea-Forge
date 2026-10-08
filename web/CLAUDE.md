@@ -1,6 +1,6 @@
 # Gaea Forge
 
-Gaea Forge is a local-first world-building and lore app for writers, game designers and tabletop game masters. Users write lore articles (characters, places, factions, items), attach tags and key-value properties, and connect articles on canvases (a 2D/3D "world web" and family trees). All data stays on the user's device in IndexedDB. There is no server.
+Gaea Forge is a local-first world-building and lore app for writers, game designers and tabletop game masters. Users write lore articles (characters, places, factions, items), attach tags and key-value properties, link articles to each other with `[[`, and arrange them on canvases: a 2D/3D "world web", family trees, timelines and maps. All data stays on the user's device in IndexedDB. There is no server.
 
 The app is a Next.js static export (`output: 'export'`) that runs in the browser or inside a Tauri v2 desktop shell (`../src-tauri`). Everything is client-side.
 
@@ -28,10 +28,13 @@ web/src/
   hooks/
     useWorld.ts           Database, articles, canvases, backup/import/restore operations
     useArticleSaver.ts    Debounced article writes + unload recovery journal
+    useCanvasSaver.ts     Ordered canvas writes + unload recovery journal
     useNotice.ts          Transient success/error toast
     useColorMode.ts       Light/dark/system color mode
     useStoredValue.ts     localStorage values read without hydration mismatches
-  components/             UI (Sidebar, AppHeader, EntityInspector, Editor, canvases, modals)
+  components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
+    WorldWebCanvas(3D).tsx, FamilyTreeCanvas.tsx, TimelineCanvas.tsx, MapCanvas.tsx
+    canvasTypes.ts        Icon, name and description per canvas type
     editor/               TipTap extensions: loreLink ([[ links between articles) + picker
   lib/
     database.ts           RxDB setup, schemas, types, seed data
@@ -43,7 +46,11 @@ web/src/
     roles.ts              Workspace roles: categories, wording, theme colors
     colorMode.ts          Color mode types and resolution
     categoryColors.ts     Category -> color (keyword based, works for every role)
-web/e2e/                  Playwright tests against the static export
+    timeline.ts           Timeline ordering, eras, date labels, form validation
+    mapView.ts            Map pan/zoom math and image <-> viewport coordinates
+    images.ts             Reading (and downscaling) uploaded images
+web/public/theme-init.js  Applies the saved color mode and role colors before first paint
+web/e2e/                  Playwright tests against the static export (fixtures.ts has shared helpers)
 ```
 
 Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything that can be a pure function in `lib/` with a unit test next to it (`*.test.ts`).
@@ -52,13 +59,15 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 
 - RxDB with the Dexie (IndexedDB) storage, database `gaeafdb_v6`, collections `articles`, `canvases` and `snapshots` (`lib/database.ts`).
 - **Never lose user data.** This is the main rule of the codebase:
-  - Changing a schema means bumping its `version` and adding a `migrationStrategies` entry. Do not rename the database to start fresh.
-  - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which saves a snapshot first.
+  - Changing a schema means bumping its `version` and adding a `migrationStrategies` entry (see `canvasMigrationStrategies` in `database.ts`), plus a test in `database.test.ts` that opens data saved with the previous version. Do not rename the database to start fresh.
+  - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which waits for pending writes and saves a snapshot first.
   - RxDB bulk calls (`bulkInsert`, `bulkUpsert`, `bulkRemove`) report failures in their return value instead of throwing. Use the helpers in `lib/backup.ts`, which check it.
   - Report failures to the user with `notify`/`showNotice`, not only `console`.
 - Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
-- Deleting an article must also remove its canvas nodes and their connections (`pruneCanvasesToArticles`).
+- Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
+- Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
+- Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`).
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 

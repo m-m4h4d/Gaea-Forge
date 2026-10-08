@@ -6,7 +6,8 @@ import { RoleConfig } from '@/lib/roles';
 import { SaveStatus } from '@/hooks/useArticleSaver';
 import { ColorMode } from '@/lib/colorMode';
 import { ViewMode } from './Sidebar';
-import { ChevronDown, FileText, GitFork, Menu, Monitor, Moon, Network, PanelRight, Pin, Sun, Trash2 } from 'lucide-react';
+import { ChevronDown, FileText, Menu, Monitor, Moon, PanelRight, Pin, Sun, Trash2 } from 'lucide-react';
+import { CANVAS_TYPE_INFO } from './canvasTypes';
 import RoleIcon from './RoleIcon';
 
 interface AppHeaderProps {
@@ -92,7 +93,7 @@ export default function AppHeader({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {activeCanvas?.type === 'family-tree' ? <GitFork size={14} aria-hidden /> : <Network size={14} aria-hidden />} <span className="hidden sm:inline truncate max-w-[11rem]" title={activeCanvas?.title}>{activeCanvas?.title}</span><span className="sm:hidden">Canvas</span>
+              {activeCanvas && React.createElement(CANVAS_TYPE_INFO[activeCanvas.type].icon, { size: 14, 'aria-hidden': true })} <span className="hidden sm:inline truncate max-w-[11rem]" title={activeCanvas?.title}>{activeCanvas?.title}</span><span className="sm:hidden">Canvas</span>
             </button>
           </div>
         </div>

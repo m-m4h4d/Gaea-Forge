@@ -102,6 +102,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
           <li><strong>Realms & Kingdoms:</strong> Chart political dynasties, sovereign territories, capitals, and biomes.</li>
           <li><strong>Magic Systems & Relics:</strong> Document sacred artifacts, ancient schools, and spellcasting rules.</li>
           <li><strong>Lineage & World Canvases:</strong> Map family trees and visualize relational webs connecting your characters.</li>
+          <li><strong>Timelines & Linked Lore:</strong> Lay out your world's history in eras, and type [[ to link characters, places and events together.</li>
           <li><strong>Intelligent Document Import:</strong> Import existing .pdf, .docx, .md, and .txt manuscripts or notes to auto-generate organized codex entries!</li>
         </ul>
       `,
@@ -163,6 +164,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
           <li><strong>Combat & Systems:</strong> Define player stat scaling, elemental damage matrices, and cooldown loops.</li>
           <li><strong>Entity & NPC Database:</strong> Create stat blocks for heroes, bosses, friendly factions, and enemy AI types.</li>
           <li><strong>Interactive Tech Web:</strong> Use the 2D/3D Canvas to map out skill trees, tech progression, and quest prerequisites.</li>
+          <li><strong>Linked Specs & Level Maps:</strong> Type [[ to cross-reference systems and entities, and pin locations on uploaded level or world maps.</li>
           <li><strong>Document Importer:</strong> Import draft design specs (.docx, .pdf, .md) to instantly extract mechanics and entity profiles.</li>
         </ul>
       `,
@@ -224,7 +226,8 @@ export const ROLES: Record<RoleId, RoleConfig> = {
           <li><strong>Party & NPC Roster:</strong> Track character stats, loyalty scores, secrets, and quest lines.</li>
           <li><strong>Bestiary & Monsters:</strong> Organize stat blocks, legendary actions, and creature vulnerabilities.</li>
           <li><strong>Interactive World Web:</strong> Graph NPC connections, faction rivalries, and trade routes in 2D and 3D.</li>
-          <li><strong>Instant Document Import:</strong> Upload PDF campaign modules and monster handbooks to create instant ready-to-run encounter articles.</li>
+          <li><strong>Campaign Maps & Timelines:</strong> Pin dungeons and towns on your maps, and track the campaign's history and session events on a timeline.</li>
+          <li><strong>Instant Document Import:</strong> Upload PDF campaign notes or monster handbooks and split them into organized articles you review before importing.</li>
         </ul>
       `,
     },
@@ -236,7 +239,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
     shortName: 'Notes & Journal',
     badge: 'Knowledge & Ideas',
     tagline: 'A clean, fast, local-first second brain for daily notes, concepts, journals, and research.',
-    description: 'Perfect for researchers, students, and thinkers who desire a markdown-powered local second brain with 3D knowledge graphing.',
+    description: 'Perfect for researchers, students, and thinkers who want a private, local second brain with linked notes and a 3D knowledge graph.',
     icon: '📝',
     theme: {
       primary: '#3b82f6', // Sleek Azure Blue
@@ -284,6 +287,7 @@ export const ROLES: Record<RoleId, RoleConfig> = {
         <ul>
           <li><strong>Daily Notes & Research:</strong> Rapidly jot down ideas, book summaries, and project roadmaps.</li>
           <li><strong>Interactive Mind Graph:</strong> Visualize how concepts, authors, and projects interconnect in 2D or a 3D cosmos view.</li>
+          <li><strong>Linked Notes & Backlinks:</strong> Type [[ to link notes together; every note shows what links to it.</li>
           <li><strong>Custom Metadata:</strong> Add tags, priorities, deadlines, and status attributes to any note.</li>
           <li><strong>Multi-Format Import:</strong> Import .md files, PDF articles, and Word documents to consolidate all your knowledge in one place.</li>
         </ul>

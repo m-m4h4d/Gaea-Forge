@@ -1,5 +1,9 @@
-import { createRxDatabase, RxDatabase, RxCollection } from 'rxdb';
+import { addRxPlugin, createRxDatabase, RxCollection, RxDatabase, RxStorage } from 'rxdb';
+import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
+
+// Needed for schema version bumps (migrationStrategies)
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 export type EntityProperty = {
   key: string;
@@ -28,7 +32,9 @@ export type RelationshipType =
   | 'rival'
   | 'custom';
 
-export type CanvasType = 'family-tree' | 'world-web';
+export type CanvasType = 'family-tree' | 'world-web' | 'timeline' | 'map';
+
+export const CANVAS_TYPES: CanvasType[] = ['world-web', 'family-tree', 'timeline', 'map'];
 
 export type CanvasNode = {
   id: string;
@@ -50,12 +56,41 @@ export type CanvasConnection = {
   label?: string;
 };
 
+// A dated event on a timeline canvas. Years are plain numbers in the world's own
+// calendar and may be negative; month and day are optional refinements.
+export type TimelineEvent = {
+  id: string;
+  title: string;
+  year: number;
+  month?: number;
+  day?: number;
+  // Last year of an event that spans time (a war, a reign)
+  endYear?: number;
+  articleId?: string;
+  description?: string;
+};
+
+// A named span of years shown as a band behind events (e.g. "The Age of Ash")
+export type TimelineEra = {
+  id: string;
+  name: string;
+  startYear: number;
+  endYear?: number;
+};
+
 export type CanvasData = {
   id: string;
   title: string;
   type: CanvasType;
+  // World web / family tree: positioned nodes. Map: pins, with x and y as
+  // fractions (0-1) of the map image's width and height.
   nodes: CanvasNode[];
   connections: CanvasConnection[];
+  // Timeline canvases
+  events?: TimelineEvent[];
+  eras?: TimelineEra[];
+  // Map canvases: the map image as a data URL
+  mapImage?: string;
   last_updated: number;
 };
 
@@ -120,7 +155,8 @@ export const loreArticleSchema = {
 } as const;
 
 export const canvasSchema = {
-  version: 0,
+  // v1 added events, eras and mapImage for timeline and map canvases
+  version: 1,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -145,6 +181,21 @@ export const canvasSchema = {
       items: {
         type: 'object'
       }
+    },
+    events: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    eras: {
+      type: 'array',
+      items: {
+        type: 'object'
+      }
+    },
+    mapImage: {
+      type: 'string'
     },
     last_updated: {
       type: 'number'
@@ -235,11 +286,12 @@ export const INITIAL_SEED_ARTICLES: LoreArticle[] = [
       <p>Your local-first, open-source world-building platform for fantasy, sci-fi, and tabletop RPG campaign lore.</p>
       <h2>Getting Started</h2>
       <ul>
-        <li><strong>Create Lore:</strong> Click <em>+ New Lore Article</em> in the sidebar to add characters, locations, factions, and artifacts.</li>
-        <li><strong>World Canvases:</strong> Create multi-type canvases in the sidebar! Visualise family trees or explore the <strong>Master World Web</strong> connecting all your universe entities.</li>
-        <li><strong>Rich Formatting:</strong> Use headings, text formatting, lists, blockquotes, and code in the live editor.</li>
-        <li><strong>Entity Inspector:</strong> Tag your entries, define custom key-value properties, and upload entity artwork on the right.</li>
-        <li><strong>Local & Private:</strong> All your world data is stored locally in IndexedDB with zero cloud dependencies. Backup anytime via <em>💾 Backup</em>.</li>
+        <li><strong>Create Lore:</strong> Use the <em>New</em> button at the bottom of the sidebar (or the <em>+</em> beside a category) to add characters, places, factions and artifacts.</li>
+        <li><strong>Link Your World:</strong> Type <code>[[</code> in the editor to link to another article, or create one on the spot. Each article lists everything that mentions it.</li>
+        <li><strong>World Canvases:</strong> Add canvases under <em>World Canvases</em> in the sidebar: a <strong>World Web</strong> of relationships (in 2D or a 3D cosmos), <strong>Family Trees</strong>, <strong>Timelines</strong> with eras, and <strong>Maps</strong> with pins.</li>
+        <li><strong>Entity Inspector:</strong> On the right, set the category, tags, custom key-value properties and artwork, and see where an article appears.</li>
+        <li><strong>Import &amp; Back Up:</strong> The <em>Import</em> button at the top of the sidebar brings in .pdf, .docx, .md and .txt files, and its <em>Backup &amp; Restore</em> tab saves your whole world to a file.</li>
+        <li><strong>Local &amp; Private:</strong> Everything is stored on this device, with no account or cloud. Changes save automatically; download a backup now and then.</li>
       </ul>
     `,
     isPinned: true,
@@ -276,53 +328,61 @@ export const INITIAL_SEED_CANVASES: CanvasData[] = [
   },
 ];
 
+// Migrations for each schema version bump: { [newVersion]: (oldDoc) => newDoc }.
+// Never change a schema without bumping its version and adding a strategy here,
+// or existing databases fail to open.
+export const canvasMigrationStrategies = {
+  // v0 -> v1 only added optional fields
+  1: (oldDoc: CanvasData) => oldDoc,
+};
+
+// Open (or create) the database with every collection, migrating and seeding as
+// needed. Separate from getDatabase so tests can pass in-memory storage.
+export async function openGaeaDatabase(name: string, storage: RxStorage<unknown, unknown>): Promise<GaeaDatabase> {
+  const db = await createRxDatabase<GaeaDatabaseCollections>({ name, storage });
+
+  await db.addCollections({
+    articles: {
+      schema: loreArticleSchema,
+    },
+    canvases: {
+      schema: canvasSchema,
+      migrationStrategies: canvasMigrationStrategies,
+    },
+    snapshots: {
+      schema: snapshotSchema,
+    },
+  });
+
+  // Seed if empty
+  const count = await db.articles.count().exec();
+  if (count === 0) {
+    await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
+  }
+
+  const canvasCount = await db.canvases.count().exec();
+  if (canvasCount === 0) {
+    await db.canvases.bulkInsert(loadLegacyCanvases() ?? INITIAL_SEED_CANVASES);
+    try {
+      localStorage.removeItem(LEGACY_CANVAS_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  return db;
+}
+
 export const getDatabase = async (): Promise<GaeaDatabase> => {
   if (typeof window === 'undefined') {
     throw new Error('RxDB can only be initialized on the client side');
   }
 
   if (!dbPromise) {
-    dbPromise = (async () => {
-      try {
-        const db = await createRxDatabase<GaeaDatabaseCollections>({
-          name: 'gaeafdb_v6',
-          storage: getRxStorageDexie(),
-        });
-
-        await db.addCollections({
-          articles: {
-            schema: loreArticleSchema,
-          },
-          canvases: {
-            schema: canvasSchema,
-          },
-          snapshots: {
-            schema: snapshotSchema,
-          },
-        });
-
-        // Seed if empty
-        const count = await db.articles.count().exec();
-        if (count === 0) {
-          await db.articles.bulkInsert(INITIAL_SEED_ARTICLES);
-        }
-
-        const canvasCount = await db.canvases.count().exec();
-        if (canvasCount === 0) {
-          await db.canvases.bulkInsert(loadLegacyCanvases() ?? INITIAL_SEED_CANVASES);
-          try {
-            localStorage.removeItem(LEGACY_CANVAS_STORAGE_KEY);
-          } catch {
-            // ignore
-          }
-        }
-
-        return db;
-      } catch (err) {
-        dbPromise = null;
-        throw err;
-      }
-    })();
+    dbPromise = openGaeaDatabase('gaeafdb_v6', getRxStorageDexie()).catch((err) => {
+      dbPromise = null;
+      throw err;
+    });
   }
   return dbPromise;
 };

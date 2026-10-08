@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { EntityProperty, LoreArticle, LoreCategory } from '@/lib/database';
-import { ChevronRight, ImagePlus, PanelRight, X } from 'lucide-react';
+import { ChevronRight, Hourglass, ImagePlus, MapPin, PanelRight, X } from 'lucide-react';
+import { ArticleTimelineEntry, formatEventDate } from '@/lib/timeline';
 
 interface EntityInspectorProps {
   isOpen: boolean;
@@ -17,6 +18,10 @@ interface EntityInspectorProps {
   // Articles this one links to; title is undefined when the target was deleted
   outgoingLinks: { id: string; title?: string }[];
   onOpenArticle: (id: string) => void;
+  // Timeline events and maps that link to this article
+  timelineEntries: ArticleTimelineEntry[];
+  mapEntries: { canvasId: string; canvasTitle: string }[];
+  onOpenCanvas: (canvasId: string) => void;
 }
 
 // Right panel for the active article: artwork, title, category, tags and properties
@@ -31,6 +36,9 @@ export default function EntityInspector({
   backlinks,
   outgoingLinks,
   onOpenArticle,
+  timelineEntries,
+  mapEntries,
+  onOpenCanvas,
 }: EntityInspectorProps) {
   const [newTagInput, setNewTagInput] = useState('');
   const [showAddTagInput, setShowAddTagInput] = useState(false);
@@ -418,6 +426,41 @@ export default function EntityInspector({
                 </>
               )}
             </div>
+
+            {/* Timelines and maps this article appears on */}
+            {(timelineEntries.length > 0 || mapEntries.length > 0) && (
+              <div>
+                <h3 className="text-slate-400 text-[11px] uppercase font-bold tracking-wider mb-2">
+                  Appears On ({timelineEntries.length + mapEntries.length})
+                </h3>
+                <ul className="space-y-1">
+                  {timelineEntries.map(({ canvasId, canvasTitle, event }) => (
+                    <li key={`${canvasId}-${event.id}`}>
+                      <button
+                        onClick={() => onOpenCanvas(canvasId)}
+                        className="w-full text-left px-2 py-1 rounded-lg bg-slate-950/50 border border-slate-800 hover:border-gold hover:text-gold text-parchment-muted flex items-center gap-2 transition-colors"
+                      >
+                        <Hourglass size={12} className="shrink-0 text-slate-500" aria-hidden />
+                        <span className="font-mono text-[11px] text-gold shrink-0">{formatEventDate(event)}</span>
+                        <span className="truncate">{event.title}</span>
+                        <span className="ml-auto text-[11px] text-slate-500 shrink-0 truncate max-w-[6rem]">{canvasTitle}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {mapEntries.map(({ canvasId, canvasTitle }) => (
+                    <li key={canvasId}>
+                      <button
+                        onClick={() => onOpenCanvas(canvasId)}
+                        className="w-full text-left px-2 py-1 rounded-lg bg-slate-950/50 border border-slate-800 hover:border-gold hover:text-gold text-parchment-muted flex items-center gap-2 transition-colors"
+                      >
+                        <MapPin size={12} className="shrink-0 text-slate-500" aria-hidden />
+                        <span className="truncate">Pinned on {canvasTitle}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Last Modified Info */}
             <div className="pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 space-y-1">

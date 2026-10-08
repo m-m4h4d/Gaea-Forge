@@ -21,4 +21,13 @@ describe('sanitizeImportedHtml', () => {
   it('drops unsupported tags but keeps their text', () => {
     expect(sanitizeImportedHtml('<table><tr><td>cell</td></tr></table><p style="color:red">x</p>')).toBe('cell<p>x</p>');
   });
+
+  it('keeps links between articles', () => {
+    const html = '<p>Ruled by <a class="lore-link" data-lore-link="characters---cast-1791461818729">Queen Mira</a></p>';
+    expect(sanitizeImportedHtml(html)).toBe(html);
+  });
+
+  it('keeps other data attributes out', () => {
+    expect(sanitizeImportedHtml('<p data-evil="x">t</p>')).toBe('<p>t</p>');
+  });
 });

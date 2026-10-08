@@ -1,5 +1,6 @@
 // HTML sanitizer for untrusted imported lore content (JSON imports, .docx output, backups)
 import DOMPurify from 'dompurify';
+import { LORE_LINK_ATTR } from './links';
 
 // Markup supported by TipTap StarterKit; everything else is stripped (text content is kept).
 const ALLOWED_TAGS = [
@@ -8,7 +9,8 @@ const ALLOWED_TAGS = [
   'strong', 'b', 'em', 'i', 's', 'strike', 'del', 'u', 'a',
 ];
 
-const ALLOWED_ATTR = ['href', 'start', 'class'];
+// LORE_LINK_ATTR holds an article id for links between articles (see links.ts)
+const ALLOWED_ATTR = ['href', 'start', 'class', LORE_LINK_ATTR];
 
 // DOMPurify's default pattern narrowed to http(s)/mailto. It is also applied to non-URI attribute
 // values, so scheme-less values (e.g. `start="3"`, relative links) must still pass.
@@ -28,5 +30,7 @@ export function sanitizeImportedHtml(dirty: string): string {
     ALLOWED_ATTR,
     ALLOWED_URI_REGEXP: SAFE_URI,
     ALLOW_DATA_ATTR: false,
+    // Article ids are not URLs, so skip the URI check for them
+    ADD_URI_SAFE_ATTR: [LORE_LINK_ATTR],
   });
 }

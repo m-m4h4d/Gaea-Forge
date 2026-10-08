@@ -94,3 +94,30 @@ test('linked articles are joined on the world web', async ({ page }) => {
   await page.getByText('Master World Web').first().click();
   await expect(page.getByTestId('article-link-line')).toHaveCount(1);
 });
+
+test('links survive a backup export and restore', async ({ page }, testInfo) => {
+  await openApp(page);
+  await createArticle(page, 'Queen Mira');
+  await openArticle(page, 'Welcome to Gaea-Forge');
+  await typeAtEndOfEditor(page, ' [[Queen');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('All changes saved')).toBeVisible();
+
+  await page.getByTitle(/Intelligent Document Import/).click();
+  await page.getByRole('button', { name: 'Backup & Restore' }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByText('Download .json Backup').click(),
+  ]);
+  const backupPath = testInfo.outputPath('linked-backup.json');
+  await download.saveAs(backupPath);
+
+  await page.getByRole('button', { name: 'Document Import' }).click();
+  await page.locator('input[type=file][accept*=".pdf"]').setInputFiles(backupPath);
+  await page.getByRole('button', { name: /Restore Backup/ }).click();
+  await expect(page.getByText(/Restored 2 articles/)).toBeVisible();
+
+  await openArticle(page, 'Welcome to Gaea-Forge');
+  await expect(editor(page).locator('a.lore-link', { hasText: 'Queen Mira' })).toBeVisible();
+  await expect(editor(page).locator('.lore-link-missing')).toHaveCount(0);
+});

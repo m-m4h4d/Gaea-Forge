@@ -1,4 +1,4 @@
-import { createCanvas, expect, openApp, openArticle, test } from './fixtures';
+import { createCanvas, expect, openApp, openArticle, test, confirmDialog } from './fixtures';
 
 const dialog = (page: import('@playwright/test').Page, name: string) => page.getByRole('dialog', { name });
 
@@ -77,6 +77,7 @@ test('events can be edited and deleted, and deleting an article only unlinks its
   await expect(page.getByTestId('timeline-event').last()).toContainText('400 – 430');
 
   await page.getByTitle('Delete Typo').click();
+  await confirmDialog(page, 'Delete Event');
   await expect(page.getByTestId('timeline-event')).toHaveCount(1);
 
   await openArticle(page, 'Welcome to Gaea-Forge');

@@ -179,7 +179,7 @@ export default function DocumentImportModal({
   const handleConfirmImport = () => {
     const selectedDrafts = parsedDrafts.filter((d) => d.selected);
     if (selectedDrafts.length === 0) {
-      alert('Please select at least one article to import.');
+      setActionError('Select at least one article to import.');
       return;
     }
 

@@ -12,6 +12,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 📖 **Lore Codex & Editor**: A rich-text editor (TipTap) with headings, lists, quotes and code, plus an inspector for each article's category, tags, custom key-value properties (stats, traits, status) and cover artwork.
 - 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames, every article lists what mentions it, and links to deleted articles are flagged.
 - 🔎 **Search & Filters**: Search titles, text, tags and properties, filter by tag, and pin important articles to the top of the sidebar.
+- ⌨️ **Quick Switcher**: Press `Ctrl/Cmd+K` to jump to any article or canvas by typing part of its name, or create a new article from the same box.
 - 🎭 **Workspace Roles**: Tailored setups for **Authors**, **Game Designers (GDD)**, **TTRPG Game Masters** and **Personal Knowledge Bases**, each with its own categories, wording and accent colors.
 
 ### Canvases
@@ -24,6 +25,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 📑 **Document Import**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt` and `.json`. Multi-topic documents are split into separate articles by their headings, `Key: Value` lines become properties, and `[[Title]]` references become links. Entries are sorted into your categories by keyword rules you can edit, and you review everything before it is saved. Imported HTML is sanitized.
 - 📦 **Full Backups**: Export your whole world (articles, artwork, canvases and workspace role) to one `.json` file and restore it later, or merge just its articles.
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
+- ↩️ **Undo Deletes**: Deleting an article or canvas shows an **Undo** button for a few seconds; undoing an article also restores its places on canvases, maps and timelines.
 - 💾 **Autosave with Recovery**: Changes save automatically (`Ctrl/Cmd+S` saves immediately), and edits made just before the app closes are recovered on the next start.
 
 ### Look & platform
@@ -39,7 +41,8 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 3. **Link your lore**: in the editor, type `[[` and pick an article. The inspector's **Mentioned In** list shows backlinks.
 4. **Add canvases** with **+ New** under *World Canvases*: a World Web, Family Tree, Timeline or Map. Canvases are listed in the sidebar; switch between the editor and the active canvas with the tabs in the header.
 5. **Import and back up** with the **Import** button at the top of the sidebar. The **Document Import** tab brings in files; **Backup & Restore** downloads a full backup and lists your safety snapshots.
-6. **Switch themes** with the sun/moon button in the header.
+6. **Jump around** with `Ctrl/Cmd+K`: type part of a name and press Enter.
+7. **Switch themes** with the sun/moon button in the header.
 
 ---
 
@@ -170,7 +173,7 @@ Gaea-Forge/
     └── src/
         ├── app/              # Main page, layout and global styles/theme tokens
         ├── components/       # UI: sidebar, header, inspector, editor, canvases, modals
-        ├── hooks/            # World data, autosave (articles and canvases), theme, notices
+        ├── hooks/            # World data, autosave (articles and canvases), theme, notices, focus trap
         └── lib/              # Database schemas, backup/restore, import, links, timeline and map logic (+ unit tests)
 ```
 

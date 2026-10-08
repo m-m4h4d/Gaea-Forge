@@ -24,16 +24,19 @@ CI (`.github/workflows/ci.yml`) runs all of these on every pull request.
 
 ```
 web/src/
-  app/page.tsx            Composition root: selection, view mode, modals, confirm dialogs
+  app/page.tsx            Composition root: selection, view mode, modals, delete/undo flows
   hooks/
     useWorld.ts           Database, articles, canvases, backup/import/restore operations
     useArticleSaver.ts    Debounced article writes + unload recovery journal
     useCanvasSaver.ts     Ordered canvas writes + unload recovery journal
-    useNotice.ts          Transient success/error toast
+    useNotice.ts          Transient success/error toast, optionally with an action (Undo)
+    useFocusTrap.ts       Keeps keyboard focus inside a modal and restores it on close
     useColorMode.ts       Light/dark/system color mode
     useStoredValue.ts     localStorage values read without hydration mismatches
     useImageUrl.ts        Displayable URL for an image field (asset reference or legacy inline data)
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
+    dialogs/DialogProvider.tsx  Styled confirmation dialogs (useConfirm)
+    QuickSwitcher.tsx     Ctrl/Cmd+K jump to an article or canvas
     WorldWebCanvas(3D).tsx, FamilyTreeCanvas.tsx, TimelineCanvas.tsx, MapCanvas.tsx
     canvasTypes.ts        Icon, name and description per canvas type
     editor/               TipTap extensions: loreLink ([[ links between articles) + picker
@@ -51,6 +54,7 @@ web/src/
     timeline.ts           Timeline ordering, eras, date labels, form validation
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
+    quickSwitch.ts        Quick switcher ranking and recent items
     assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
 web/public/theme-init.js  Applies the saved color mode and role colors before first paint
 web/e2e/                  Playwright tests against the static export (fixtures.ts has shared helpers)
@@ -71,7 +75,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
 - Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
 - Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
-- Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`).
+- Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`). `deleteArticle` returns an undo function that restores the article and merges those links back into the current canvases (`restoreArticleLinks`), so edits made after the delete are kept.
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 
@@ -97,6 +101,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - TypeScript strict mode; avoid `any`.
 - Match the surrounding style: Tailwind utility classes, the `gold`/`parchment` theme tokens from `globals.css`, short comments that explain why.
 - Next.js 16 has breaking changes from older versions; see `AGENTS.md`.
+- Never use `window.confirm`, `alert` or `prompt` (the e2e fixtures fail on native dialogs). Ask with `useConfirm()` (`tone: 'danger'` for destructive actions). Prefer Undo over asking: deleting whole articles or canvases happens at once and shows a notice with an Undo action (`showNotice(kind, text, { label, onClick })`).
 - New behavior needs a test: a Vitest unit test for logic in `lib/`, and a Playwright test in `e2e/` for user-visible flows that touch persistence.
 
 @AGENTS.md

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CalendarPlus, Flag, Hourglass, Link2, Pencil, Trash2, X } from 'lucide-react';
 import { CanvasData, LoreArticle, TimelineEra, TimelineEvent } from '@/lib/database';
+import { useConfirm } from './dialogs/DialogProvider';
 import {
   buildTimelineSections,
   EraDraft,
@@ -32,6 +33,7 @@ type Editing =
 // A vertical, chronological timeline of events grouped into eras
 export default function TimelineCanvas({ canvasData, onChange, articles, onOpenArticle }: TimelineCanvasProps) {
   const [editing, setEditing] = useState<Editing>(null);
+  const confirm = useConfirm();
   const events = canvasData.events ?? [];
   const eras = canvasData.eras ?? [];
   const sections = buildTimelineSections(events, eras);
@@ -57,13 +59,19 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
     setEditing(null);
   };
 
-  const deleteEvent = (event: TimelineEvent) => {
-    if (!window.confirm(`Delete the event "${event.title}"?`)) return;
+  const deleteEvent = async (event: TimelineEvent) => {
+    if (!(await confirm({ title: `Delete "${event.title}"?`, confirmLabel: 'Delete Event', tone: 'danger' }))) return;
     save({ events: events.filter((e) => e.id !== event.id) });
   };
 
-  const deleteEra = (era: TimelineEra) => {
-    if (!window.confirm(`Delete the era "${era.name}"? Its events stay on the timeline.`)) return;
+  const deleteEra = async (era: TimelineEra) => {
+    const ok = await confirm({
+      title: `Delete the era "${era.name}"?`,
+      message: 'Its events stay on the timeline.',
+      confirmLabel: 'Delete Era',
+      tone: 'danger',
+    });
+    if (!ok) return;
     save({ eras: eras.filter((e) => e.id !== era.id) });
   };
 

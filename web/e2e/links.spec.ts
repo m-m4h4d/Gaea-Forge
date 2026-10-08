@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { createArticle, expect, openApp, openArticle, openImportTab, test, typeAtEndOfEditor } from './fixtures';
+import { createArticle, expect, openApp, openArticle, openImportTab, test, typeAtEndOfEditor, confirmDialog } from './fixtures';
 
 const editor = (page: import('@playwright/test').Page) => page.locator('.ProseMirror');
 const inspector = (page: import('@playwright/test').Page) => page.locator('aside').last();
@@ -116,6 +116,7 @@ test('links survive a backup export and restore', async ({ page }, testInfo) => 
   await page.getByRole('button', { name: 'Document Import' }).click();
   await page.locator('input[type=file][accept*=".pdf"]').setInputFiles(backupPath);
   await page.getByRole('button', { name: /Restore Backup/ }).click();
+  await confirmDialog(page, 'Restore Backup');
   await expect(page.getByText(/Restored 2 articles/)).toBeVisible();
 
   await openArticle(page, 'Welcome to Gaea-Forge');

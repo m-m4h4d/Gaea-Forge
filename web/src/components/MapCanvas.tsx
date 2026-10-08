@@ -7,6 +7,7 @@ import { categoryColor } from '@/lib/categoryColors';
 import { MAX_MAP_DIMENSION, readImageFile } from '@/lib/images';
 import { fitView, MapView, Point, Size, toImageFraction, toViewportPoint, zoomAt } from '@/lib/mapView';
 import { useImageUrl } from '@/hooks/useImageUrl';
+import { useConfirm } from './dialogs/DialogProvider';
 
 interface MapCanvasProps {
   canvasData: CanvasData;
@@ -32,6 +33,7 @@ type PinEditor = { pin?: CanvasNode; at: Point };
 export default function MapCanvas({ canvasData, onChange, articles, onOpenArticle, storeImage }: MapCanvasProps) {
   const mapImageUrl = useImageUrl(canvasData.mapImage);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageSize, setImageSize] = useState<Size | null>(null);
   const [view, setView] = useState<MapView>({ zoom: 1, pan: { x: 0, y: 0 } });
@@ -180,8 +182,8 @@ export default function MapCanvas({ canvasData, onChange, articles, onOpenArticl
     setPinEditor(null);
   };
 
-  const deletePin = (pin: CanvasNode) => {
-    if (!window.confirm(`Remove the pin "${pinLabel(pin)}"?`)) return;
+  const deletePin = async (pin: CanvasNode) => {
+    if (!(await confirm({ title: `Remove the pin "${pinLabel(pin)}"?`, confirmLabel: 'Remove Pin', tone: 'danger' }))) return;
     setSelectedPinId(null);
     savePins(pins.filter((p) => p.id !== pin.id));
   };

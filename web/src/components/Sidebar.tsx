@@ -4,6 +4,8 @@ import React from 'react';
 import { CanvasData, LoreArticle } from '@/lib/database';
 import { ChevronDown, ChevronRight, Inbox, Palette, PanelLeftClose, Pin, Plus, Search, X } from 'lucide-react';
 import { CANVAS_TYPE_INFO } from './canvasTypes';
+import SearchResults from './SearchResults';
+import { SearchHit } from '@/lib/search';
 
 export type ViewMode = 'editor' | 'canvas';
 
@@ -12,6 +14,8 @@ interface SidebarProps {
   onClose: () => void;
   onOpenImport: () => void;
   searchQuery: string;
+  // Ranked results while a search is active, otherwise null
+  searchHits: SearchHit[] | null;
   onSearchChange: (query: string) => void;
   selectedTagFilter: string | null;
   onClearTagFilter: () => void;
@@ -40,6 +44,7 @@ export default function Sidebar({
   onClose,
   onOpenImport,
   searchQuery,
+  searchHits,
   onSearchChange,
   selectedTagFilter,
   onClearTagFilter,
@@ -108,6 +113,8 @@ export default function Sidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && onSearchChange('')}
+                aria-label="Search articles"
                 placeholder="Search lore, tags… (Ctrl+K to jump)"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-parchment placeholder-slate-500 focus:outline-none focus:border-gold transition-colors"
               />
@@ -116,6 +123,7 @@ export default function Sidebar({
                 <button
                   onClick={() => onSearchChange('')}
                   className="absolute right-2.5 top-1.5 text-slate-500 hover:text-gold text-xs"
+                  aria-label="Clear search"
                 >
                   <X size={12} aria-hidden />
                 </button>
@@ -188,119 +196,129 @@ export default function Sidebar({
               </ul>
             </div>
 
-            {/* Pinned Articles Section */}
-            {pinnedArticles.length > 0 && (
+            {searchHits ? (
+              <SearchResults
+                hits={searchHits}
+                activeArticleId={activeViewMode === 'editor' ? activeArticleId : null}
+                onSelectArticle={onSelectArticle}
+              />
+            ) : (
+              <>
+              {/* Pinned Articles Section */}
+              {pinnedArticles.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider flex items-center gap-1">
+                      <Pin size={12} aria-hidden /> Pinned Codex
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {pinnedArticles.map((art) => (
+                      <li key={art.id}>
+                        <button
+                          onClick={() => onSelectArticle(art.id)}
+                          className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
+                            activeArticleId === art.id && activeViewMode === 'editor'
+                              ? 'bg-gold/15 text-gold font-semibold ring-1 ring-inset ring-gold/30'
+                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-gold'
+                          }`}
+                        >
+                          <span className="truncate">{art.title}</span>
+                          <span className="text-[11px] text-slate-500 shrink-0 ml-1 font-mono">
+                            {art.category.slice(0, 3)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Category Folders */}
               <div>
                 <div className="flex items-center justify-between px-2 mb-2">
-                  <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider flex items-center gap-1">
-                    <Pin size={12} aria-hidden /> Pinned Codex
+                  <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider">
+                    {codexTitle}
                   </span>
+                  <button
+                    onClick={() => {
+                      if (expandedCategories.size > 0) {
+                        onExpandedChange(new Set());
+                      } else {
+                        onExpandedChange(new Set(displayCategories));
+                      }
+                    }}
+                    className="text-[11px] text-slate-500 hover:text-gold transition-colors"
+                  >
+                    {expandedCategories.size > 0 ? 'Collapse All' : 'Expand All'}
+                  </button>
                 </div>
-                <ul className="space-y-1">
-                  {pinnedArticles.map((art) => (
-                    <li key={art.id}>
-                      <button
-                        onClick={() => onSelectArticle(art.id)}
-                        className={`w-full text-left py-1.5 px-2.5 rounded-lg text-xs flex items-center justify-between transition-all ${
-                          activeArticleId === art.id && activeViewMode === 'editor'
-                            ? 'bg-gold/15 text-gold font-semibold ring-1 ring-inset ring-gold/30'
-                            : 'text-slate-300 hover:bg-slate-800/80 hover:text-gold'
-                        }`}
-                      >
-                        <span className="truncate">{art.title}</span>
-                        <span className="text-[11px] text-slate-500 shrink-0 ml-1 font-mono">
-                          {art.category.slice(0, 3)}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
-            {/* Category Folders */}
-            <div>
-              <div className="flex items-center justify-between px-2 mb-2">
-                <span className="font-semibold text-slate-400 uppercase text-[11px] tracking-wider">
-                  {codexTitle}
-                </span>
-                <button
-                  onClick={() => {
-                    if (expandedCategories.size > 0) {
-                      onExpandedChange(new Set());
-                    } else {
-                      onExpandedChange(new Set(displayCategories));
-                    }
-                  }}
-                  className="text-[11px] text-slate-500 hover:text-gold transition-colors"
-                >
-                  {expandedCategories.size > 0 ? 'Collapse All' : 'Expand All'}
-                </button>
-              </div>
+                <div className="space-y-3">
+                  {displayCategories.map((cat) => {
+                    const categoryArticles = filteredArticles.filter((a) => a.category === cat);
+                    const isExpanded = expandedCategories.has(cat);
 
-              <div className="space-y-3">
-                {displayCategories.map((cat) => {
-                  const categoryArticles = filteredArticles.filter((a) => a.category === cat);
-                  const isExpanded = expandedCategories.has(cat);
-
-                  return (
-                    <div key={cat} className="space-y-1">
-                      <div className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/50 group">
-                        <button
-                          onClick={() => onToggleCategory(cat)}
-                          className="text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors text-slate-300 group-hover:text-gold"
-                        >
-                          {isExpanded ? (
-                <ChevronDown size={13} className="text-slate-500" aria-hidden />
-              ) : (
-                <ChevronRight size={13} className="text-slate-500" aria-hidden />
-              )}
-                          {cat}
-                        </button>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[11px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">
-                            {categoryArticles.length}
-                          </span>
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex items-center justify-between px-2 py-1 rounded hover:bg-slate-800/50 group">
                           <button
-                            onClick={() => onNewArticle(cat)}
-                            className="text-xs text-slate-500 hover:text-gold px-1 rounded transition-colors opacity-0 group-hover:opacity-100"
-                            title={`Add new article in ${cat}`}
+                            onClick={() => onToggleCategory(cat)}
+                            className="text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-colors text-slate-300 group-hover:text-gold"
                           >
-                            +
+                            {isExpanded ? (
+                  <ChevronDown size={13} className="text-slate-500" aria-hidden />
+                ) : (
+                  <ChevronRight size={13} className="text-slate-500" aria-hidden />
+                )}
+                            {cat}
                           </button>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-mono">
+                              {categoryArticles.length}
+                            </span>
+                            <button
+                              onClick={() => onNewArticle(cat)}
+                              className="text-xs text-slate-500 hover:text-gold px-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                              title={`Add new article in ${cat}`}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Article list under category */}
-                      {isExpanded && (
-                        <ul className="space-y-0.5 pl-3 border-l border-slate-800 ml-2">
-                          {categoryArticles.length > 0 ? (
-                            categoryArticles.map((art) => (
-                              <li key={art.id}>
-                                <button
-                                  onClick={() => onSelectArticle(art.id)}
-                                  className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
-                                    activeArticleId === art.id && activeViewMode === 'editor'
-                                      ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
-                                      : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                                  }`}
-                                >
-                                  {art.title}
-                                </button>
+                        {/* Article list under category */}
+                        {isExpanded && (
+                          <ul className="space-y-0.5 pl-3 border-l border-slate-800 ml-2">
+                            {categoryArticles.length > 0 ? (
+                              categoryArticles.map((art) => (
+                                <li key={art.id}>
+                                  <button
+                                    onClick={() => onSelectArticle(art.id)}
+                                    className={`w-full text-left py-1 px-2 rounded text-xs truncate transition-colors ${
+                                      activeArticleId === art.id && activeViewMode === 'editor'
+                                        ? 'bg-slate-800 text-gold font-medium border-l-2 border-gold'
+                                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                                    }`}
+                                  >
+                                    {art.title}
+                                  </button>
+                                </li>
+                              ))
+                            ) : (
+                              <li className="text-[11px] text-slate-500 px-2 py-0.5 italic">
+                                {searchQuery || selectedTagFilter ? 'No matching lore' : 'No articles yet'}
                               </li>
-                            ))
-                          ) : (
-                            <li className="text-[11px] text-slate-500 px-2 py-0.5 italic">
-                              {searchQuery || selectedTagFilter ? 'No matching lore' : 'No articles yet'}
-                            </li>
-                          )}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
+                            )}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Footer Quick Add Button */}

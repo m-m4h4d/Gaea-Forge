@@ -2,26 +2,10 @@
 import { LoreArticle } from './database';
 import { ROLES, RoleId } from './roles';
 
-// Case-insensitive match on title, content, tags and properties, optionally limited to one tag
-export function filterArticles(
-  articles: LoreArticle[],
-  query: string,
-  tag: string | null
-): LoreArticle[] {
-  const q = query.trim().toLowerCase();
-
-  return articles.filter((art) => {
-    if (tag && !art.tags.includes(tag)) return false;
-    if (!q) return true;
-    return (
-      art.title.toLowerCase().includes(q) ||
-      art.content.toLowerCase().includes(q) ||
-      art.tags.some((t) => t.toLowerCase().includes(q)) ||
-      art.properties.some(
-        (p) => p.key.toLowerCase().includes(q) || p.value.toLowerCase().includes(q)
-      )
-    );
-  });
+// Articles carrying the tag, or all of them without a tag filter.
+// Text search lives in lib/search.ts.
+export function filterArticles(articles: LoreArticle[], tag: string | null): LoreArticle[] {
+  return tag ? articles.filter((art) => art.tags.includes(tag)) : articles;
 }
 
 // Categories whose articles can appear as people on family trees

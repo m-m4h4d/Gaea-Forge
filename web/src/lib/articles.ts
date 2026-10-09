@@ -1,6 +1,7 @@
 // Pure helpers for creating, searching and grouping articles
 import { LoreArticle } from './database';
 import { ROLES, RoleId } from './roles';
+import { CategoryTemplate, createArticleFromTemplate, defaultTemplate } from './templates';
 
 // Articles carrying the tag, or all of them without a tag filter.
 // Text search lives in lib/search.ts.
@@ -20,22 +21,13 @@ export function mergeCategories(roleCategories: string[], articles: LoreArticle[
   );
 }
 
-// A fresh draft article for the "New Article" modal
-export function createArticleDraft(data: { title: string; category: string; tags: string[] }): LoreArticle {
-  const timestamp = Date.now();
-  return {
-    id: `${data.category.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}`,
-    title: data.title,
-    category: data.category,
-    content: `<h1>${escapeHtml(data.title)}</h1><p>Start detailing your lore for ${escapeHtml(data.title)}...</p>`,
-    tags: data.tags,
-    properties: [
-      { key: 'Status', value: 'Draft' },
-      { key: 'Created', value: new Date(timestamp).toLocaleDateString() },
-    ],
-    isPinned: false,
-    last_updated: timestamp,
-  };
+// A fresh article for the "New Article" modal, shaped by the category's template
+// (the built-in one unless the user saved their own)
+export function createArticleDraft(
+  data: { title: string; category: string; tags: string[] },
+  template: CategoryTemplate = defaultTemplate(data.category)
+): LoreArticle {
+  return createArticleFromTemplate(data, template);
 }
 
 // The pinned welcome article seeded when a workspace role is chosen
@@ -52,12 +44,4 @@ export function createRoleSampleArticle(roleId: RoleId): LoreArticle {
     isPinned: true,
     last_updated: timestamp,
   };
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

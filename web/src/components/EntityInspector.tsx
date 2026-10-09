@@ -333,6 +333,7 @@ export default function EntityInspector({
                     </span>
                     <input
                       type="text"
+                      aria-label={prop.key}
                       value={prop.value}
                       onChange={(e) => handleUpdatePropertyValue(idx, e.target.value)}
                       className="w-1/2 bg-transparent text-right text-parchment-muted focus:bg-slate-950 focus:outline-none border-b border-transparent focus:border-gold px-1 rounded"

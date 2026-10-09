@@ -43,6 +43,7 @@ import { useWorld } from '@/hooks/useWorld';
 import { useArticleSearch } from '@/hooks/useArticleSearch';
 import { loadViewState, resolveViewState, saveViewState } from '@/lib/viewState';
 import { describeRenamePlan, isEmptyRenamePlan, planRename } from '@/lib/rename';
+import { loadTemplates, templateForCategory } from '@/lib/templates';
 import { useColorMode } from '@/hooks/useColorMode';
 import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
 import { nextColorMode } from '@/lib/colorMode';
@@ -265,8 +266,12 @@ export default function Home() {
       return next;
     });
 
+  // New articles take their category's template (a saved custom one, or the built-in)
+  const newArticle = (data: { title: string; category: string; tags: string[] }) =>
+    createArticleDraft(data, templateForCategory(data.category, loadTemplates()).template);
+
   const handleCreateArticle = (data: { title: string; category: LoreCategory; tags: string[] }) => {
-    const article = createArticleDraft(data);
+    const article = newArticle(data);
     world.addArticle(article);
     expandCategory(article.category);
     setActiveArticleId(article.id);
@@ -274,7 +279,7 @@ export default function Home() {
 
   // Create an article from the editor's [[ picker, in the current article's category
   const handleCreateLinkedArticle = (title: string) => {
-    const article = createArticleDraft({
+    const article = newArticle({
       title,
       category: activeArticle?.category ?? displayCategories[0],
       tags: [],
@@ -541,6 +546,7 @@ export default function Home() {
         onCreate={handleCreateArticle}
         defaultCategory={newModalCategory}
         categories={displayCategories}
+        currentArticle={activeArticle}
       />
 
       <NewCanvasModal
@@ -571,7 +577,7 @@ export default function Home() {
           recentIds={recentIds}
           onSelect={(item) => (item.kind === 'article' ? openArticle(item.id) : openCanvas(item.id))}
           onCreateArticle={(title) => {
-            const article = createArticleDraft({ title, category: activeArticle?.category ?? displayCategories[0], tags: [] });
+            const article = newArticle({ title, category: activeArticle?.category ?? displayCategories[0], tags: [] });
             world.addArticle(article);
             expandCategory(article.category);
             openArticle(article.id);

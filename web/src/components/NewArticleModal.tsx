@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { LORE_CATEGORIES, LoreCategory } from '@/lib/database';
+import { LORE_CATEGORIES, LoreArticle, LoreCategory } from '@/lib/database';
+import { loadTemplates, saveTemplate, templateForCategory } from '@/lib/templates';
 import Modal from './dialogs/Modal';
+import TemplateEditorModal from './TemplateEditorModal';
 
 interface NewArticleModalProps {
   isOpen: boolean;
@@ -10,6 +12,8 @@ interface NewArticleModalProps {
   onCreate: (article: { title: string; category: LoreCategory; tags: string[] }) => void;
   defaultCategory?: LoreCategory;
   categories?: string[];
+  // Offered as a source when editing a template
+  currentArticle?: LoreArticle;
 }
 
 export default function NewArticleModal({
@@ -18,16 +22,27 @@ export default function NewArticleModal({
   onCreate,
   defaultCategory,
   categories = [...LORE_CATEGORIES],
+  currentArticle,
 }: NewArticleModalProps) {
   const [title, setTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<LoreCategory | null>(null);
   const [tagsInput, setTagsInput] = useState('');
 
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
+  // Bumped after a template is saved, so the summary below re-reads it
+  const [, setTemplatesVersion] = useState(0);
 
   if (!isOpen) return null;
 
   const currentCategory = selectedCategory ?? defaultCategory ?? categories[0] ?? 'General';
+  // Read when the modal is open (client only), so prerendering never touches storage
+  const { template, isCustom } = templateForCategory(currentCategory, loadTemplates());
+  const updateTemplate = (next: Parameters<typeof saveTemplate>[1]) => {
+    saveTemplate(currentCategory, next);
+    setTemplatesVersion((v) => v + 1);
+    setIsEditingTemplate(false);
+  };
 
   const handleClose = () => {
     setTitle('');
@@ -59,7 +74,7 @@ export default function NewArticleModal({
 
   return (
     <Modal
-      onClose={onClose}
+      onClose={handleClose}
       labelledBy="new-article-title"
       overlayClassName="bg-slate-950/80 backdrop-blur-sm p-4"
       className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 relative text-parchment animate-in fade-in zoom-in-95 duration-150" initialFocus={titleInputRef}
@@ -84,10 +99,11 @@ export default function NewArticleModal({
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
+            <label htmlFor="new-article-category" className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">
               Category
             </label>
             <select
+              id="new-article-category"
               value={currentCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-parchment focus:outline-none focus:border-gold transition-colors"
@@ -98,6 +114,20 @@ export default function NewArticleModal({
                 </option>
               ))}
             </select>
+            <div className="mt-1.5 flex items-start justify-between gap-2 text-[11px]" data-testid="template-summary">
+              <p className="text-slate-400 leading-snug">
+                {isCustom ? 'Your template' : 'Starts with'}:{' '}
+                {[
+                  template.properties.map((p) => p.key).join(', '),
+                  template.sections.length ? `sections ${template.sections.join(', ')}` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'no extra fields'}
+              </p>
+              <button type="button" onClick={() => setIsEditingTemplate(true)} className="text-gold hover:underline shrink-0">
+                Edit template
+              </button>
+            </div>
           </div>
 
           <div>
@@ -130,6 +160,17 @@ export default function NewArticleModal({
             </button>
           </div>
         </form>
+        {isEditingTemplate && (
+          <TemplateEditorModal
+            category={currentCategory}
+            template={template}
+            isCustom={isCustom}
+            sourceArticle={currentArticle}
+            onSave={updateTemplate}
+            onReset={() => updateTemplate(null)}
+            onClose={() => setIsEditingTemplate(false)}
+          />
+        )}
     </Modal>
   );
 }

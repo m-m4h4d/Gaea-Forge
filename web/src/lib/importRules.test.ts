@@ -12,6 +12,21 @@ import {
 } from './importRules';
 import { ROLES } from './roles';
 
+const storage = new Map<string, string>();
+const mockStorage = {
+  getItem: (k: string) => storage.get(k) ?? null,
+  setItem: (k: string, v: string) => { storage.set(k, String(v)); },
+  removeItem: (k: string) => { storage.delete(k); },
+  clear: () => { storage.clear(); },
+  get length() { return storage.size; },
+  key: (i: number) => Array.from(storage.keys())[i] ?? null,
+};
+Object.defineProperty(globalThis, 'localStorage', {
+  value: mockStorage,
+  configurable: true,
+  writable: true,
+});
+
 const entry = (over: Partial<{ title: string; sectionContext: string; body: string }>) => ({
   title: '',
   sectionContext: '',

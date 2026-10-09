@@ -18,7 +18,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 ### Canvases
 - 🕸️ **World Web**: A relationship graph of your articles with named connections (allies, rivals, mentors…). Articles that link to each other are joined automatically, and a **3D cosmos** view renders the web as an orbitable star field (Three.js).
 - 🌳 **Family Trees**: Map parents, spouses, siblings and lineages, with one-click auto-arrangement into generations.
-- ⏳ **Timelines**: History in your world's own calendar (negative years welcome), with events grouped into named eras, spans for wars and reigns, and links to articles.
+- ⏳ **Timelines**: History in your world's own calendar, with events grouped into named eras, spans for wars and reigns, and links to articles. Give each timeline its own months (names and lengths), year labels like *412 AR* / *30 BR*, and optionally count years from each era (*Year 3 of the Restoration*).
 - 🗺️ **Maps**: Upload a map image, pan and zoom it, and drop pins that link places to their articles. Every article shows which timelines and maps it appears on.
 
 ### Import, backup & safety

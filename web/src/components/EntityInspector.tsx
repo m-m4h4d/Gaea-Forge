@@ -446,14 +446,14 @@ export default function EntityInspector({
                   Appears On ({timelineEntries.length + mapEntries.length})
                 </h3>
                 <ul className="space-y-1">
-                  {timelineEntries.map(({ canvasId, canvasTitle, event }) => (
+                  {timelineEntries.map(({ canvasId, canvasTitle, event, calendar, eras }) => (
                     <li key={`${canvasId}-${event.id}`}>
                       <button
                         onClick={() => onOpenCanvas(canvasId)}
                         className="w-full text-left px-2 py-1 rounded-lg bg-slate-950/50 border border-slate-800 hover:border-gold hover:text-gold text-parchment-muted flex items-center gap-2 transition-colors"
                       >
                         <Hourglass size={12} className="shrink-0 text-slate-500" aria-hidden />
-                        <span className="font-mono text-[11px] text-gold shrink-0">{formatEventDate(event)}</span>
+                        <span className="font-mono text-[11px] text-gold shrink-0">{formatEventDate(event, calendar, eras)}</span>
                         <span className="truncate">{event.title}</span>
                         <span className="ml-auto text-[11px] text-slate-500 shrink-0 truncate max-w-[6rem]">{canvasTitle}</span>
                       </button>

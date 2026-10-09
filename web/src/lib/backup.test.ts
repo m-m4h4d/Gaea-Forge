@@ -32,6 +32,19 @@ const canvas: CanvasData = {
 };
 
 describe('parseWorldBackup', () => {
+  it('keeps a timeline calendar, dropping invalid parts', () => {
+    const timeline: CanvasData = {
+      id: 'tl', title: 'Chronicle', type: 'timeline', nodes: [], connections: [], last_updated: 1,
+      calendar: { months: [{ name: 'Frostmere', days: 30 }, { name: 'Thaw' }], yearSuffix: 'AR', eraDates: true },
+    };
+    const roundTrip = parseWorldBackup(JSON.parse(JSON.stringify(createBackup([], [timeline]))))!;
+    expect(roundTrip.canvases[0].calendar).toEqual(timeline.calendar);
+
+    const junk = { ...timeline, calendar: { months: 'Frostmere', yearSuffix: '  ', eraDates: 1 } };
+    const parsed = parseWorldBackup({ format: BACKUP_FORMAT, version: 1, articles: [], canvases: [junk] })!;
+    expect(parsed.canvases[0]).not.toHaveProperty('calendar');
+  });
+
   it('round-trips a backup through JSON unchanged', () => {
     const backup = createBackup([article], [canvas], 'ttrpg-dm');
     const parsed = parseWorldBackup(JSON.parse(JSON.stringify(backup)));

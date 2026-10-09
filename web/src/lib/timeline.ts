@@ -1,23 +1,20 @@
 // Pure helpers for timeline canvases: ordering, eras and date labels
 import { CanvasData, TimelineEra, TimelineEvent } from './database';
+import { checkEventDate, formatCalendarDate, formatYear, TimelineCalendar } from './calendar';
 
 export function compareEvents(a: TimelineEvent, b: TimelineEvent): number {
   return a.year - b.year || (a.month ?? 0) - (b.month ?? 0) || (a.day ?? 0) - (b.day ?? 0) || a.title.localeCompare(b.title);
 }
 
-// "412", "412.3", "412.3.15", or "412 – 430" for spans
-export function formatEventDate(event: TimelineEvent): string {
-  let label = String(event.year);
-  if (event.month !== undefined) {
-    label += `.${event.month}`;
-    if (event.day !== undefined) label += `.${event.day}`;
-  }
-  if (event.endYear !== undefined && event.endYear !== event.year) label += ` – ${event.endYear}`;
-  return label;
+// "412", "412.3", "412.3.15", or "412 – 430" for spans; with a calendar, named months,
+// year labels and era-relative years (see lib/calendar.ts)
+export function formatEventDate(event: TimelineEvent, calendar?: TimelineCalendar, eras: TimelineEra[] = []): string {
+  return formatCalendarDate(event, calendar, calendar?.eraDates ? eraForYear(event.year, eras) : undefined);
 }
 
-export function formatEraRange(era: TimelineEra): string {
-  return era.endYear === undefined ? `${era.startYear} onward` : `${era.startYear} – ${era.endYear}`;
+export function formatEraRange(era: TimelineEra, calendar?: TimelineCalendar): string {
+  const start = formatYear(era.startYear, calendar);
+  return era.endYear === undefined ? `${start} onward` : `${start} – ${formatYear(era.endYear, calendar)}`;
 }
 
 // The era an event starts in; with overlapping eras the one that began latest wins
@@ -67,7 +64,14 @@ export function buildTimelineSections(events: TimelineEvent[], eras: TimelineEra
   return sections;
 }
 
-export type ArticleTimelineEntry = { canvasId: string; canvasTitle: string; event: TimelineEvent };
+export type ArticleTimelineEntry = {
+  canvasId: string;
+  canvasTitle: string;
+  event: TimelineEvent;
+  // For showing the date the way its timeline does
+  calendar?: TimelineCalendar;
+  eras: TimelineEra[];
+};
 
 // Timeline events that link to an article, across every timeline canvas
 export function findArticleEvents(canvases: CanvasData[], articleId: string): ArticleTimelineEntry[] {
@@ -76,7 +80,7 @@ export function findArticleEvents(canvases: CanvasData[], articleId: string): Ar
     .flatMap((c) =>
       (c.events ?? [])
         .filter((e) => e.articleId === articleId)
-        .map((event) => ({ canvasId: c.id, canvasTitle: c.title, event }))
+        .map((event) => ({ canvasId: c.id, canvasTitle: c.title, event, calendar: c.calendar, eras: c.eras ?? [] }))
     )
     .sort((a, b) => compareEvents(a.event, b.event));
 }
@@ -104,7 +108,7 @@ function parseWhole(raw: string): number | undefined | null {
 }
 
 // Form fields -> event (without id), or the first problem to show the user
-export function parseEventDraft(draft: EventDraft): Parsed<Omit<TimelineEvent, 'id'>> {
+export function parseEventDraft(draft: EventDraft, calendar?: TimelineCalendar): Parsed<Omit<TimelineEvent, 'id'>> {
   const title = draft.title.trim();
   if (!title) return { ok: false, error: 'Give the event a title.' };
 
@@ -116,6 +120,8 @@ export function parseEventDraft(draft: EventDraft): Parsed<Omit<TimelineEvent, '
   if (month === null || (month !== undefined && month < 1)) return { ok: false, error: 'Month must be a positive whole number.' };
   if (day === null || (day !== undefined && day < 1)) return { ok: false, error: 'Day must be a positive whole number.' };
   if (day !== undefined && month === undefined) return { ok: false, error: 'Add a month to give a day.' };
+  const calendarProblem = checkEventDate({ month, day }, calendar);
+  if (calendarProblem) return { ok: false, error: `This date ${calendarProblem}` };
 
   const endYear = parseWhole(draft.endYear);
   if (endYear === null) return { ok: false, error: 'End year must be a whole number.' };

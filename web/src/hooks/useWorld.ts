@@ -26,7 +26,7 @@ import {
 import { RoleId } from '@/lib/roles';
 import { externalizeImages, storeImage as storeImageAsset } from '@/lib/assets';
 import { MAX_COVER_DIMENSION, readImageFile } from '@/lib/images';
-import { saveJsonFile } from '@/lib/saveFile';
+import { MARKDOWN_FILE, saveFile, saveJsonFile, SaveResult, ZIP_FILE } from '@/lib/saveFile';
 import { useArticleSaver } from './useArticleSaver';
 import { useCanvasSaver } from './useCanvasSaver';
 import { Notify } from './useNotice';
@@ -228,21 +228,38 @@ export function useWorld(notify: Notify) {
 
   // ---- Backup, import and restore ----
 
-  const exportBackup = async (roleId: RoleId) => {
-    // Write pending edits first so the backup matches what is on screen
+  // Save a file built from the world as it is now (images inline), and report the outcome
+  const exportWorld = async (what: string, build: (world: { articles: LoreArticle[]; canvases: CanvasData[] }) => Promise<SaveResult>) => {
+    // Write pending edits first so the file matches what is on screen
     await saver.flush();
     await canvasSaver.settle();
     try {
       const world = db ? await readWorld(db) : { articles, canvases };
-      const backup = createBackup(world.articles, world.canvases, roleId);
-      const result = await saveJsonFile(backupFileName(backup), JSON.stringify(backup, null, 2));
-      if (result.status === 'saved') notify('success', `Backup saved to ${result.path}`);
+      const result = await build(world);
+      if (result.status === 'saved') notify('success', `${what} saved to ${result.path}`);
     } catch (e) {
-      console.error('Backup export failed:', e);
+      console.error(`${what} export failed:`, e);
       // Desktop write errors arrive as a message from Rust (e.g. permission denied)
-      notify('error', typeof e === 'string' ? e : 'Could not export the backup.');
+      notify('error', typeof e === 'string' ? e : `Could not export the ${what.toLowerCase()}.`);
     }
   };
+
+  const exportBackup = (roleId: RoleId) =>
+    exportWorld('Backup', (world) => {
+      const backup = createBackup(world.articles, world.canvases, roleId);
+      return saveJsonFile(backupFileName(backup), JSON.stringify(backup, null, 2));
+    });
+
+  // Markdown for other tools: a .zip of files (with images), or one document
+  const exportMarkdown = (format: 'folder' | 'document', title: string) =>
+    exportWorld('Markdown export', async (world) => {
+      // Loaded on demand: the converter and zip code aren't needed until someone exports
+      const { buildMarkdownDocument, buildMarkdownZip } = await import('@/lib/markdownExport');
+      const date = new Date().toISOString().slice(0, 10);
+      return format === 'folder'
+        ? saveFile(`gaea-forge-markdown-${date}.zip`, buildMarkdownZip(world), ZIP_FILE)
+        : saveFile(`gaea-forge-${date}.md`, buildMarkdownDocument(world, title), MARKDOWN_FILE);
+    });
 
   const loadSnapshots = async (): Promise<WorldSnapshot[]> => {
     if (!db) return [];
@@ -334,6 +351,7 @@ export function useWorld(notify: Notify) {
     createCanvas,
     deleteCanvas,
     exportBackup,
+    exportMarkdown,
     loadSnapshots,
     importArticles,
     restoreBackup,

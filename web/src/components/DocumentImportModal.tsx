@@ -7,7 +7,7 @@ import { articlesToDrafts, parseDocumentFile, ParsedEntityDraft, recategorizeDra
 import { defaultImportRules, ImportRule, loadImportRules, saveImportRules } from '@/lib/importRules';
 import ImportRulesEditor from './ImportRulesEditor';
 import { parseWorldBackup, WorldBackup } from '@/lib/backup';
-import { FileUp, HardDriveDownload, Inbox, SlidersHorizontal, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { FileText, FileUp, FolderArchive, HardDriveDownload, Inbox, SlidersHorizontal, Sparkles, TriangleAlert, X } from 'lucide-react';
 import Modal from './dialogs/Modal';
 
 interface DocumentImportModalProps {
@@ -23,6 +23,7 @@ interface DocumentImportModalProps {
   onRestoreBackup: (backup: WorldBackup) => Promise<boolean>;
   onRestoreSnapshot: (snapshot: WorldSnapshot) => Promise<boolean>;
   onExportBackup: () => void;
+  onExportMarkdown: (format: 'folder' | 'document') => void;
 }
 
 export default function DocumentImportModal({
@@ -37,6 +38,7 @@ export default function DocumentImportModal({
   onRestoreBackup,
   onRestoreSnapshot,
   onExportBackup,
+  onExportMarkdown,
 }: DocumentImportModalProps) {
   const [activeTab, setActiveTab] = useState<'import' | 'export'>('import');
   
@@ -296,6 +298,40 @@ export default function DocumentImportModal({
                 >
                   Download .json Backup
                 </button>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">
+                <div className="flex items-start gap-3">
+                  <FileText size={20} className="text-gold shrink-0 mt-0.5" aria-hidden />
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-50">Export as Markdown</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Readable text for other tools and for sharing. Links between articles become Markdown links;
+                      timelines, maps and relationship webs become lists. This is an export, not a backup: use the
+                      .json backup to restore a world.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onExportMarkdown('folder')}
+                    className="text-left px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-100">
+                      <FolderArchive size={14} aria-hidden /> Folder of files (.zip)
+                    </span>
+                    <span className="block text-[11px] text-slate-400 mt-0.5">One file per article with its properties and images. Opens in Obsidian.</span>
+                  </button>
+                  <button
+                    onClick={() => onExportMarkdown('document')}
+                    className="text-left px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-slate-100">
+                      <FileText size={14} aria-hidden /> Single document (.md)
+                    </span>
+                    <span className="block text-[11px] text-slate-400 mt-0.5">Everything in one story bible with a table of contents. Without images.</span>
+                  </button>
+                </div>
               </div>
 
               <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-5 space-y-3">

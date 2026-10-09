@@ -20,6 +20,7 @@
     "@tiptap/suggestion": "^3.23.1",
     "@types/three": "^0.185.4",
     "dompurify": "^3.4.16",
+    "fflate": "^0.8.3",
     "idb": "^8.0.3",
     "lucide-react": "1.47.0",
     "mammoth": "^1.12.2",
@@ -30,7 +31,8 @@
     "react-dom": "19.2.4",
     "rxdb": "^17.2.0",
     "rxjs": "^7.8.2",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
@@ -38,6 +40,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/turndown": "^5.0.6",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",

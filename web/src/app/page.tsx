@@ -567,6 +567,7 @@ export default function Home() {
         onRestoreBackup={handleRestoreBackup}
         onRestoreSnapshot={handleRestoreSnapshot}
         onExportBackup={() => world.exportBackup(currentRoleId)}
+        onExportMarkdown={(format) => world.exportMarkdown(format, activeRoleConfig.terminology.workspaceTitle)}
       />
 
       <NoticeToast notice={notice} onDismiss={dismissNotice} />

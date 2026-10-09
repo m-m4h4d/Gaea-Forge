@@ -7,7 +7,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: () => inTauri,
 }));
 
-const { saveJsonFile, SAVE_COMMAND } = await import('./saveFile');
+const { bytesToBase64, saveFile, saveJsonFile, SAVE_COMMAND, ZIP_FILE } = await import('./saveFile');
 
 describe('saveJsonFile in the desktop app', () => {
   beforeEach(() => {
@@ -18,7 +18,25 @@ describe('saveJsonFile in the desktop app', () => {
   it('asks Rust to save and reports where the file went', async () => {
     invoke.mockResolvedValue('/home/me/gaea.json');
     await expect(saveJsonFile('gaea.json', '{"a":1}')).resolves.toEqual({ status: 'saved', path: '/home/me/gaea.json' });
-    expect(invoke).toHaveBeenCalledWith(SAVE_COMMAND, { defaultName: 'gaea.json', contents: '{"a":1}' });
+    expect(invoke).toHaveBeenCalledWith(SAVE_COMMAND, {
+      defaultName: 'gaea.json',
+      contentsBase64: btoa('{"a":1}'),
+      filterName: 'JSON backup',
+      extensions: ['json'],
+    });
+  });
+
+  it('sends binary files as base64', async () => {
+    invoke.mockResolvedValue('/home/me/world.zip');
+    const bytes = new Uint8Array([0x50, 0x4b, 3, 4, 255, 0]);
+    await saveFile('world.zip', bytes, ZIP_FILE);
+    expect(invoke.mock.calls[0][1]).toMatchObject({ contentsBase64: 'UEsDBP8A', filterName: 'Zip archive', extensions: ['zip'] });
+  });
+
+  it('encodes large and non-ASCII contents', () => {
+    const big = new Uint8Array(100_000).map((_, i) => i % 256);
+    expect(Uint8Array.from(atob(bytesToBase64(big)), (c) => c.charCodeAt(0))).toEqual(big);
+    expect(new TextDecoder().decode(Uint8Array.from(atob(bytesToBase64(new TextEncoder().encode('Éowyn ✓'))), (c) => c.charCodeAt(0)))).toBe('Éowyn ✓');
   });
 
   it('reports a cancelled dialog', async () => {

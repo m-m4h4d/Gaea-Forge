@@ -27,6 +27,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 ### Import, backup & safety
 
 - 📑 **Document Import**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt` and `.json`. Multi-topic documents are split into separate articles by their headings, `Key: Value` lines become properties, and `[[Title]]` references become links. Entries are sorted into your categories by keyword rules you can edit, and you review everything before it is saved. Imported HTML is sanitized.
+- 📝 **Markdown Export**: Export your world as a folder of Markdown files (one per article, with properties as front matter, working links and images; opens in Obsidian) or as a single story-bible document with a table of contents. Timelines, maps and relationship webs come along as lists.
 - 📦 **Full Backups**: Export your whole world (articles, artwork, canvases and workspace role) to one `.json` file and restore it later, or merge just its articles.
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
 - ↩️ **Undo Deletes**: Deleting an article or canvas shows an **Undo** button for a few seconds; undoing an article also restores its places on canvases, maps and timelines.
@@ -46,7 +47,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 2. **Create articles** with the **New** button at the bottom of the sidebar, or the **+** next to a category. Use the inspector on the right for tags, properties and artwork.
 3. **Link your lore**: in the editor, type `[[` and pick an article. The inspector's **Mentioned In** list shows backlinks.
 4. **Add canvases** with **+ New** under *World Canvases*: a World Web, Family Tree, Timeline or Map. Canvases are listed in the sidebar; switch between the editor and the active canvas with the tabs in the header.
-5. **Import and back up** with the **Import** button at the top of the sidebar. The **Document Import** tab brings in files; **Backup & Restore** saves a full backup (the desktop app asks where to save it) and lists your safety snapshots.
+5. **Import and back up** with the **Import** button at the top of the sidebar. The **Document Import** tab brings in files; **Backup & Restore** exports Markdown, saves a full backup (the desktop app asks where to save it) and lists your safety snapshots.
 6. **Jump around** with `Ctrl/Cmd+K`: type part of a name and press Enter.
 7. **Switch themes** with the sun/moon button in the header.
 

@@ -35,17 +35,20 @@ web/src/
     useColorMode.ts       Light/dark/system color mode
     useStoredValue.ts     localStorage values read without hydration mismatches
     useImageUrl.ts        Displayable URL for an image field (asset reference or legacy inline data)
+    useArticleSearch.ts   Sidebar search results from a session-long, incrementally synced index
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
     dialogs/DialogProvider.tsx  Styled confirmation dialogs (useConfirm)
     dialogs/Modal.tsx     Shared modal shell: dialog role, Escape to close, focus trap
     QuickSwitcher.tsx     Ctrl/Cmd+K jump to an article or canvas
+    SearchResults.tsx     Ranked sidebar search results with highlighted snippets
     WorldWebCanvas(3D).tsx, FamilyTreeCanvas.tsx, TimelineCanvas.tsx, MapCanvas.tsx
     canvasTypes.ts        Icon, name and description per canvas type
     editor/               TipTap extensions: loreLink ([[ links between articles) + picker
   lib/
     database.ts           RxDB setup, schemas, types, seed data
     backup.ts             Backup format, parsing, snapshots, canvas pruning
-    articles.ts           Pure article helpers (search, categories, factories)
+    articles.ts           Pure article helpers (tag filter, categories, factories)
+    search.ts             Ranked full-text search (MiniSearch) over plain text, snippets
     documentParser.ts     .pdf/.docx/.doc/.md/.txt/.json import and segmentation
     importRules.ts        Keyword rules that sort imported entries into categories (user-editable)
     familyTreeLayout.ts   Family tree auto-arrange
@@ -80,6 +83,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
 - Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
 - Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`). `deleteArticle` returns an undo function that restores the article and merges those links back into the current canvases (`restoreArticleLinks`), so edits made after the delete are kept.
+- Search (`lib/search.ts`) indexes article text as plain text (`htmlToPlainText`), never raw HTML, so markup and link ids can't match. `ArticleSearchIndex.sync` re-indexes only articles whose object changed, which relies on edits replacing article objects rather than mutating them.
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 

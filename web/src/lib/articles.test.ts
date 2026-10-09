@@ -22,30 +22,12 @@ const article = (overrides: Partial<LoreArticle>): LoreArticle => ({
 describe('filterArticles', () => {
   const articles = [
     article({ id: '1', title: 'Queen Mira', tags: ['royalty'] }),
-    article({ id: '2', title: 'Ashfall', content: '<p>A volcanic city</p>', tags: ['city'] }),
-    article({ id: '3', title: 'Blade', properties: [{ key: 'Forged by', value: 'Dwarves' }] }),
+    article({ id: '2', title: 'Ashfall', tags: ['city'] }),
   ];
-  const ids = (list: LoreArticle[]) => list.map((a) => a.id);
 
-  it('returns everything for an empty or whitespace query', () => {
-    expect(ids(filterArticles(articles, '   ', null))).toEqual(['1', '2', '3']);
-  });
-
-  it('matches title, content, tags and properties case-insensitively', () => {
-    expect(ids(filterArticles(articles, 'MIRA', null))).toEqual(['1']);
-    expect(ids(filterArticles(articles, 'volcanic', null))).toEqual(['2']);
-    expect(ids(filterArticles(articles, 'royal', null))).toEqual(['1']);
-    expect(ids(filterArticles(articles, 'dwarves', null))).toEqual(['3']);
-    expect(ids(filterArticles(articles, 'forged', null))).toEqual(['3']);
-  });
-
-  it('ignores surrounding whitespace in the query', () => {
-    expect(ids(filterArticles(articles, '  mira ', null))).toEqual(['1']);
-  });
-
-  it('combines the query with an exact tag filter', () => {
-    expect(ids(filterArticles(articles, '', 'city'))).toEqual(['2']);
-    expect(ids(filterArticles(articles, 'mira', 'city'))).toEqual([]);
+  it('keeps articles with the tag, or all of them without a filter', () => {
+    expect(filterArticles(articles, 'city').map((a) => a.id)).toEqual(['2']);
+    expect(filterArticles(articles, null)).toBe(articles);
   });
 });
 

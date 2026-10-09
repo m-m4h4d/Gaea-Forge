@@ -40,6 +40,7 @@ import { findArticleEvents } from '@/lib/timeline';
 import { findArticleMaps } from '@/lib/mapView';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
+import { useArticleSearch } from '@/hooks/useArticleSearch';
 import { useColorMode } from '@/hooks/useColorMode';
 import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
 import { nextColorMode } from '@/lib/colorMode';
@@ -81,7 +82,8 @@ export default function Home() {
   const activeArticle = articles.find((a) => a.id === activeArticleId) || articles[0];
   const activeCanvas = canvases.find((c) => c.id === activeCanvasId) || canvases[0];
 
-  const filteredArticles = filterArticles(articles, searchQuery, selectedTagFilter);
+  const searchHits = useArticleSearch(articles, searchQuery, selectedTagFilter);
+  const filteredArticles = filterArticles(articles, selectedTagFilter);
   const pinnedArticles = filteredArticles.filter((a) => a.isPinned);
   const characterArticles = articles.filter((a) => isCharacterCategory(a.category));
   const displayCategories = mergeCategories(categories, articles);
@@ -348,6 +350,7 @@ export default function Home() {
         onClose={() => setIsSidebarOpen(false)}
         onOpenImport={() => setIsImportModalOpen(true)}
         searchQuery={searchQuery}
+        searchHits={searchHits}
         onSearchChange={setSearchQuery}
         selectedTagFilter={selectedTagFilter}
         onClearTagFilter={() => setSelectedTagFilter(null)}

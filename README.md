@@ -10,7 +10,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 
 ### Writing & organizing
 - 📖 **Lore Codex & Editor**: A rich-text editor (TipTap) with headings, lists, quotes and code, plus an inspector for each article's category, tags, custom key-value properties (stats, traits, status) and cover artwork.
-- 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames, every article lists what mentions it, and links to deleted articles are flagged.
+- 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames (and the app offers to update link text that still shows the old name), every article lists what mentions it, and links to deleted articles are flagged.
 - 🔎 **Search & Filters**: Search titles, text, tags and properties with ranked results (best matches first, with the matching passage highlighted). Partial words and small typos still match. Filter by tag, and pin important articles to the top of the sidebar.
 - ⌨️ **Quick Switcher**: Press `Ctrl/Cmd+K` to jump to any article or canvas by typing part of its name, or create a new article from the same box.
 - 🎭 **Workspace Roles**: Tailored setups for **Authors**, **Game Designers (GDD)**, **TTRPG Game Masters** and **Personal Knowledge Bases**, each with its own categories, wording and accent colors.

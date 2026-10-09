@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { EntityProperty, LoreArticle, LoreCategory } from '@/lib/database';
 import { ChevronRight, Hourglass, ImagePlus, MapPin, PanelRight, X } from 'lucide-react';
 import { ArticleTimelineEntry, formatEventDate } from '@/lib/timeline';
@@ -12,6 +12,8 @@ interface EntityInspectorProps {
   article: LoreArticle | undefined;
   categories: string[];
   onUpdate: (article: LoreArticle) => void;
+  // Called once a title edit is finished (the field loses focus), not per keystroke
+  onRenamed?: (articleId: string, oldTitle: string, newTitle: string) => void;
   onDelete: () => void;
   onTagClick: (tag: string) => void;
   // Articles that link to this one
@@ -33,6 +35,7 @@ export default function EntityInspector({
   article,
   categories,
   onUpdate,
+  onRenamed,
   onDelete,
   onTagClick,
   backlinks,
@@ -45,6 +48,8 @@ export default function EntityInspector({
 }: EntityInspectorProps) {
   const coverUrl = useImageUrl(article?.coverImage);
   const [newTagInput, setNewTagInput] = useState('');
+  // The title when the field gained focus, to report the whole rename on blur
+  const titleAtFocus = useRef<{ id: string; title: string } | null>(null);
   const [showAddTagInput, setShowAddTagInput] = useState(false);
   const [showAddPropInput, setShowAddPropInput] = useState(false);
   const [newPropKey, setNewPropKey] = useState('');
@@ -203,6 +208,7 @@ export default function EntityInspector({
                 </label>
                 <input
                   type="text"
+                  aria-label="Article title"
                   value={article.title}
                   onChange={(e) =>
                     onUpdate({
@@ -210,6 +216,17 @@ export default function EntityInspector({
                       title: e.target.value,
                     })
                   }
+                  onFocus={() => {
+                    titleAtFocus.current = { id: article.id, title: article.title };
+                  }}
+                  onBlur={(e) => {
+                    const before = titleAtFocus.current;
+                    titleAtFocus.current = null;
+                    if (before && before.id === article.id && before.title !== e.target.value) {
+                      onRenamed?.(article.id, before.title, e.target.value);
+                    }
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                   className="w-full bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-parchment font-semibold text-xs focus:outline-none focus:border-gold"
                 />
               </div>

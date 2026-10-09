@@ -18,8 +18,9 @@ export default function NoticeToast({ notice, onDismiss }: { notice: Notice | nu
       {notice.action && (
         <button
           onClick={() => {
-            notice.action!.onClick();
+            // Dismiss first, so a notice the action shows (e.g. "Updated ...") stays up
             onDismiss();
+            notice.action!.onClick();
           }}
           className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gold font-bold shrink-0"
         >

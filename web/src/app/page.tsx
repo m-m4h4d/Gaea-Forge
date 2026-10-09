@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@/components/Editor';
 import NewArticleModal from '@/components/NewArticleModal';
 import NewCanvasModal from '@/components/NewCanvasModal';
@@ -42,6 +42,7 @@ import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 import { useArticleSearch } from '@/hooks/useArticleSearch';
 import { loadViewState, resolveViewState, saveViewState } from '@/lib/viewState';
+import { describeRenamePlan, isEmptyRenamePlan, planRename } from '@/lib/rename';
 import { useColorMode } from '@/hooks/useColorMode';
 import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
 import { nextColorMode } from '@/lib/colorMode';
@@ -226,6 +227,29 @@ export default function Home() {
     setCollapsedCategories(new Set(displayCategories.filter((c) => !expanded.has(c))));
 
   // ---- Articles ----
+
+  // The latest world, for notice actions that run after later renders
+  const worldRef = useRef({ articles, canvases });
+  useEffect(() => {
+    worldRef.current = { articles, canvases };
+  });
+
+  // After a rename, offer to update text that still shows the old title
+  const handleRenamed = (articleId: string, oldTitle: string, newTitle: string) => {
+    const plan = planRename(articleId, oldTitle, newTitle, articles, canvases);
+    if (isEmptyRenamePlan(plan)) return;
+    showNotice('success', `Renamed. Update ${describeRenamePlan(plan)} to "${newTitle.trim()}"?`, {
+      label: 'Update',
+      onClick: () => {
+        // Re-plan against the world as it is now, in case it changed meanwhile
+        const { articles: current, canvases: currentCanvases } = worldRef.current;
+        const latest = planRename(articleId, oldTitle, newTitle, current, currentCanvases);
+        latest.articles.forEach(world.updateArticle);
+        latest.canvases.forEach(world.updateCanvas);
+        if (!isEmptyRenamePlan(latest)) showNotice('success', `Updated ${describeRenamePlan(latest)}.`);
+      },
+    });
+  };
 
   const handleContentChange = (newContent: string) => {
     if (!activeArticle || activeArticle.content === newContent) return;
@@ -497,6 +521,7 @@ export default function Home() {
           article={activeArticle}
           categories={displayCategories}
           onUpdate={world.updateArticle}
+          onRenamed={handleRenamed}
           onDelete={handleDeleteActiveArticle}
           onTagClick={setSelectedTagFilter}
           backlinks={backlinks}

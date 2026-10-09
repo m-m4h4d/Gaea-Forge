@@ -9,6 +9,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 ## ✨ Features
 
 ### Writing & organizing
+
 - 📖 **Lore Codex & Editor**: A rich-text editor (TipTap) with headings, lists, quotes and code, plus an inspector for each article's category, tags, custom key-value properties (stats, traits, status) and cover artwork.
 - 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames, every article lists what mentions it, and links to deleted articles are flagged.
 - 🔎 **Search & Filters**: Search titles, text, tags and properties with ranked results (best matches first, with the matching passage highlighted). Partial words and small typos still match. Filter by tag, and pin important articles to the top of the sidebar.
@@ -16,12 +17,14 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 🎭 **Workspace Roles**: Tailored setups for **Authors**, **Game Designers (GDD)**, **TTRPG Game Masters** and **Personal Knowledge Bases**, each with its own categories, wording and accent colors.
 
 ### Canvases
+
 - 🕸️ **World Web**: A relationship graph of your articles with named connections (allies, rivals, mentors…). Articles that link to each other are joined automatically, and a **3D cosmos** view renders the web as an orbitable star field (Three.js).
 - 🌳 **Family Trees**: Map parents, spouses, siblings and lineages, with one-click auto-arrangement into generations.
 - ⏳ **Timelines**: History in your world's own calendar (negative years welcome), with events grouped into named eras, spans for wars and reigns, and links to articles.
 - 🗺️ **Maps**: Upload a map image, pan and zoom it, and drop pins that link places to their articles. Every article shows which timelines and maps it appears on.
 
 ### Import, backup & safety
+
 - 📑 **Document Import**: Import `.pdf`, `.docx`, `.doc`, `.md`, `.txt` and `.json`. Multi-topic documents are split into separate articles by their headings, `Key: Value` lines become properties, and `[[Title]]` references become links. Entries are sorted into your categories by keyword rules you can edit, and you review everything before it is saved. Imported HTML is sanitized.
 - 📦 **Full Backups**: Export your whole world (articles, artwork, canvases and workspace role) to one `.json` file and restore it later, or merge just its articles.
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
@@ -29,6 +32,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 💾 **Autosave with Recovery**: Changes save automatically (`Ctrl/Cmd+S` saves immediately), and edits made just before the app closes are recovered on the next start.
 
 ### Look & platform
+
 - 🌓 **Light & Dark Themes**: Dark, light, or follow your system, with each role's accent colors in both modes and text that meets WCAG AA contrast.
 - 🖥️ **Desktop & Web**: Runs as a native desktop app (Tauri v2) or in the browser (Next.js static export). Works fully offline.
 

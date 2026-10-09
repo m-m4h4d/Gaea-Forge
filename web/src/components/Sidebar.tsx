@@ -7,7 +7,8 @@ import { CANVAS_TYPE_INFO } from './canvasTypes';
 import SearchResults from './SearchResults';
 import { SearchHit } from '@/lib/search';
 
-export type ViewMode = 'editor' | 'canvas';
+export type { ViewMode } from '@/lib/viewState';
+import type { ViewMode } from '@/lib/viewState';
 
 interface SidebarProps {
   isOpen: boolean;

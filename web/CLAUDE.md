@@ -60,6 +60,7 @@ web/src/
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
     quickSwitch.ts        Quick switcher ranking and recent items
+    viewState.ts          The last view (open article/canvas, panels, folders, recents), saved per device
     threeDispose.ts       Freeing Three.js GPU resources (geometries, materials, textures)
     saveFile.ts           Saving files: native Save dialog in the desktop app, download in browsers
     assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
@@ -84,6 +85,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
 - Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`). `deleteArticle` returns an undo function that restores the article and merges those links back into the current canvases (`restoreArticleLinks`), so edits made after the delete are kept.
 - Search (`lib/search.ts`) indexes article text as plain text (`htmlToPlainText`), never raw HTML, so markup and link ids can't match. `ArticleSearchIndex.sync` re-indexes only articles whose object changed, which relies on edits replacing article objects rather than mutating them.
+- The last view is saved in localStorage (`gaea_view_state`, `lib/viewState.ts`): it is per-device UI state, so it stays out of the database and backups. `page.tsx` restores it once `useWorld().isLoaded` is true, which waits for the database and for canvases recovered from the unload journal, and checks every saved id still exists (`resolveViewState`). It only starts saving after that restore, so the defaults never overwrite a saved view.
 - Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 

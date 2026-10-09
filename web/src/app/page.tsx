@@ -41,6 +41,7 @@ import { findArticleMaps } from '@/lib/mapView';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 import { useArticleSearch } from '@/hooks/useArticleSearch';
+import { loadViewState, resolveViewState, saveViewState } from '@/lib/viewState';
 import { useColorMode } from '@/hooks/useColorMode';
 import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
 import { nextColorMode } from '@/lib/colorMode';
@@ -78,6 +79,42 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [snapshots, setSnapshots] = useState<WorldSnapshot[]>([]);
+
+  // Recently opened articles and canvases, most recent first (for the quick switcher)
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+
+  // Reopen where the user left off. This waits for the real world to load: the seed
+  // shown before that doesn't have the saved article or canvas.
+  const [isViewRestored, setIsViewRestored] = useState(false);
+  if (world.isLoaded && !isViewRestored) {
+    setIsViewRestored(true);
+    const saved = loadViewState();
+    if (saved) {
+      const view = resolveViewState(saved, new Set(articles.map((a) => a.id)), new Set(canvases.map((c) => c.id)));
+      if (view.articleId) setActiveArticleId(view.articleId);
+      if (view.canvasId) setActiveCanvasId(view.canvasId);
+      if (view.viewMode) setActiveViewMode(view.viewMode);
+      if (view.collapsedCategories) setCollapsedCategories(new Set(view.collapsedCategories));
+      if (view.recentIds) setRecentIds(view.recentIds);
+      // The saved panel choice, except that narrow windows still start with them closed
+      if (view.sidebarOpen !== undefined) setIsSidebarOpen(view.sidebarOpen && window.innerWidth >= 768);
+      if (view.inspectorOpen !== undefined) setIsInspectorOpen(view.inspectorOpen && window.innerWidth >= 1100);
+    }
+  }
+
+  useEffect(() => {
+    // Until the saved view is restored, these are just the defaults; don't overwrite it
+    if (!isViewRestored) return;
+    saveViewState({
+      viewMode: activeViewMode,
+      articleId: activeArticleId,
+      canvasId: activeCanvasId,
+      sidebarOpen: isSidebarOpen,
+      inspectorOpen: isInspectorOpen,
+      collapsedCategories: [...collapsedCategories],
+      recentIds,
+    });
+  }, [isViewRestored, activeViewMode, activeArticleId, activeCanvasId, isSidebarOpen, isInspectorOpen, collapsedCategories, recentIds]);
 
   const activeArticle = articles.find((a) => a.id === activeArticleId) || articles[0];
   const activeCanvas = canvases.find((c) => c.id === activeCanvasId) || canvases[0];
@@ -118,8 +155,6 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isImportModalOpen]);
 
-  // Recently opened articles and canvases, most recent first (for the quick switcher)
-  const [recentIds, setRecentIds] = useState<string[]>([]);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
 
   const openArticle = (id: string) => {

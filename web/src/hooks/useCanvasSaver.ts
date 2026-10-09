@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CanvasData, GaeaDatabase } from '@/lib/database';
 import { upsertCanvases } from '@/lib/backup';
 
@@ -18,17 +18,18 @@ function writeJournal(pending: Map<string, CanvasData>) {
   }
 }
 
-// Apply journaled canvases that are newer than the database copy, or missing from it
-async function replayJournal(db: GaeaDatabase) {
+// Apply journaled canvases that are newer than the database copy, or missing from it.
+// Returns the canvases it wrote.
+async function replayJournal(db: GaeaDatabase): Promise<CanvasData[]> {
   let entries: CanvasData[];
   try {
     const raw = localStorage.getItem(JOURNAL_KEY);
-    if (!raw) return;
+    if (!raw) return [];
     entries = JSON.parse(raw);
   } catch {
-    return;
+    return [];
   }
-  if (!Array.isArray(entries)) return;
+  if (!Array.isArray(entries)) return [];
 
   const newer: CanvasData[] = [];
   for (const entry of entries) {
@@ -38,11 +39,19 @@ async function replayJournal(db: GaeaDatabase) {
   }
   if (newer.length > 0) await upsertCanvases(db, newer);
   localStorage.removeItem(JOURNAL_KEY);
+  return newer;
 }
 
 // Canvas writes: queued so they reach the database in the order they were made,
 // with unconfirmed versions kept so late database change events can't revert them.
-export function useCanvasSaver(db: GaeaDatabase | null, onError: (message: string) => void) {
+// onRecovered receives canvases restored from the journal as soon as they are written,
+// together with isRecovered turning true, so callers never see one without the other
+// (the database's own change event for them may arrive later).
+export function useCanvasSaver(
+  db: GaeaDatabase | null,
+  onError: (message: string) => void,
+  onRecovered?: (canvases: CanvasData[]) => void
+) {
   // Latest local version of each canvas not yet confirmed written
   const pendingRef = useRef(new Map<string, CanvasData>());
   const writesRef = useRef<Promise<void>>(Promise.resolve());
@@ -105,9 +114,23 @@ export function useCanvasSaver(db: GaeaDatabase | null, onError: (message: strin
   }, []);
 
   // Recover canvas edits from an interrupted session
+  const [isRecovered, setIsRecovered] = useState(false);
+  const onRecoveredRef = useRef(onRecovered);
+  useEffect(() => {
+    onRecoveredRef.current = onRecovered;
+  });
   useEffect(() => {
     if (!db) return;
-    replayJournal(db).catch((e) => console.error('Failed to recover unsaved canvases:', e));
+    replayJournal(db).then(
+      (recovered) => {
+        if (recovered.length > 0) onRecoveredRef.current?.(recovered);
+        setIsRecovered(true);
+      },
+      (e) => {
+        console.error('Failed to recover unsaved canvases:', e);
+        setIsRecovered(true);
+      }
+    );
   }, [db]);
 
   useEffect(() => {
@@ -125,5 +148,5 @@ export function useCanvasSaver(db: GaeaDatabase | null, onError: (message: strin
     };
   }, []);
 
-  return { save, remove, settle, clear, mergeWithPending };
+  return { save, remove, settle, clear, mergeWithPending, isRecovered };
 }

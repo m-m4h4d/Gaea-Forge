@@ -39,12 +39,24 @@ export function useWorld(notify: Notify) {
   const [articles, setArticles] = useState<LoreArticle[]>(INITIAL_SEED_ARTICLES);
   // Seed shown until RxDB loads
   const [canvases, setCanvases] = useState<CanvasData[]>(INITIAL_SEED_CANVASES);
+  // Which collections the database has delivered; until then the seed is on screen
+  const [loaded, setLoaded] = useState({ articles: false, canvases: false, failed: false });
   const [, startTransition] = useTransition();
 
   const saver = useArticleSaver(db);
   const { mergeWithPending } = saver;
 
-  const canvasSaver = useCanvasSaver(db, (message) => notify('error', message));
+  const canvasSaver = useCanvasSaver(
+    db,
+    (message) => notify('error', message),
+    // Canvases recovered from an interrupted session (e.g. created just before a
+    // reload) are shown right away, not only when the database reports them
+    (recovered) =>
+      setCanvases((prev) => {
+        const byId = new Map(recovered.map((c) => [c.id, c]));
+        return [...prev.map((c) => byId.get(c.id) ?? c), ...recovered.filter((c) => !prev.some((p) => p.id === c.id))];
+      })
+  );
 
   // Undo callbacks run after later renders, so they read the latest canvases here
   const canvasesRef = useRef(canvases);
@@ -67,6 +79,7 @@ export function useWorld(notify: Notify) {
             if (isMounted && docs) {
               const items = docs.map((doc) => doc.toJSON() as LoreArticle);
               setArticles(mergeWithPending(items));
+              setLoaded((l) => (l.articles ? l : { ...l, articles: true }));
             }
           })
         );
@@ -77,6 +90,7 @@ export function useWorld(notify: Notify) {
             if (isMounted && docs && docs.length > 0) {
               setCanvases(mergeCanvasesWithPending(docs.map((doc) => doc.toJSON() as CanvasData)));
             }
+            if (isMounted) setLoaded((l) => (l.canvases ? l : { ...l, canvases: true }));
           })
         );
       })
@@ -84,6 +98,8 @@ export function useWorld(notify: Notify) {
         console.error('Failed to open the local database:', err);
         if (isMounted) {
           notify('error', 'Could not open the local database. Changes will not be saved.');
+          // Nothing more will arrive; carry on with the seed
+          setLoaded({ articles: true, canvases: true, failed: true });
         }
       });
 
@@ -303,6 +319,9 @@ export function useWorld(notify: Notify) {
   return {
     articles,
     canvases,
+    // The real world has loaded from the database, including canvases recovered
+    // from an interrupted session (or the database failed to open)
+    isLoaded: loaded.failed || (loaded.articles && loaded.canvases && canvasSaver.isRecovered),
     saveStatus: saver.status,
     saveError: saver.error,
     flushSaves: saver.flush,

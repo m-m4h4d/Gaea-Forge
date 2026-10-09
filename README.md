@@ -11,7 +11,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 ### Writing & organizing
 
 - 📖 **Lore Codex & Editor**: A rich-text editor (TipTap) with headings, lists, quotes and code, plus an inspector for each article's category, tags, custom key-value properties (stats, traits, status) and cover artwork.
-- 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames, every article lists what mentions it, and links to deleted articles are flagged.
+- 🔗 **Linked Lore & Backlinks**: Type `[[` to link to another article, or create one on the spot. Links survive renames (and the app offers to update link text that still shows the old name), every article lists what mentions it, and links to deleted articles are flagged.
 - 🔎 **Search & Filters**: Search titles, text, tags and properties with ranked results (best matches first, with the matching passage highlighted). Partial words and small typos still match. Filter by tag, and pin important articles to the top of the sidebar.
 - ⌨️ **Quick Switcher**: Press `Ctrl/Cmd+K` to jump to any article or canvas by typing part of its name, or create a new article from the same box.
 - 🎭 **Workspace Roles**: Tailored setups for **Authors**, **Game Designers (GDD)**, **TTRPG Game Masters** and **Personal Knowledge Bases**, each with its own categories, wording and accent colors.
@@ -20,7 +20,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 
 - 🕸️ **World Web**: A relationship graph of your articles with named connections (allies, rivals, mentors…). Articles that link to each other are joined automatically, and a **3D cosmos** view renders the web as an orbitable star field (Three.js).
 - 🌳 **Family Trees**: Map parents, spouses, siblings and lineages, with one-click auto-arrangement into generations.
-- ⏳ **Timelines**: History in your world's own calendar (negative years welcome), with events grouped into named eras, spans for wars and reigns, and links to articles.
+- ⏳ **Timelines**: History in your world's own calendar, with events grouped into named eras, spans for wars and reigns, and links to articles. Give each timeline its own months (names and lengths), year labels like *412 AR* / *30 BR*, and optionally count years from each era (*Year 3 of the Restoration*).
 - 🗺️ **Maps**: Upload a map image, pan and zoom it, and drop pins that link places to their articles. Every article shows which timelines and maps it appears on.
 
 ### Import, backup & safety
@@ -29,6 +29,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 📦 **Full Backups**: Export your whole world (articles, artwork, canvases and workspace role) to one `.json` file and restore it later, or merge just its articles.
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
 - ↩️ **Undo Deletes**: Deleting an article or canvas shows an **Undo** button for a few seconds; undoing an article also restores its places on canvases, maps and timelines.
+- 📍 **Picks Up Where You Left Off**: Reopening the app returns to the article or canvas you had open, with your panels, collapsed folders and recent items as you left them.
 - 💾 **Autosave with Recovery**: Changes save automatically (`Ctrl/Cmd+S` saves immediately), and edits made just before the app closes are recovered on the next start.
 
 ### Look & platform

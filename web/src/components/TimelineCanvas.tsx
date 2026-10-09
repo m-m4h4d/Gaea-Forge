@@ -1,9 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
-import { CalendarPlus, Flag, Hourglass, Link2, Pencil, Trash2, X } from 'lucide-react';
+import React, { RefObject, useId, useRef, useState } from 'react';
+import { CalendarCog, CalendarPlus, Flag, Hourglass, Link2, Pencil, Trash2, X } from 'lucide-react';
 import { CanvasData, LoreArticle, TimelineEra, TimelineEvent } from '@/lib/database';
 import { useConfirm } from './dialogs/DialogProvider';
+import Modal from './dialogs/Modal';
+import {
+  CalendarDraft,
+  calendarToDraft,
+  formatAbsoluteDate,
+  formatYear,
+  GREGORIAN_MONTHS,
+  monthsToText,
+  parseCalendarDraft,
+  parseMonthsText,
+  TimelineCalendar,
+} from '@/lib/calendar';
 import {
   buildTimelineSections,
   EraDraft,
@@ -28,6 +40,7 @@ const createId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.
 type Editing =
   | { kind: 'event'; event?: TimelineEvent }
   | { kind: 'era'; era?: TimelineEra }
+  | { kind: 'calendar' }
   | null;
 
 // A vertical, chronological timeline of events grouped into eras
@@ -36,10 +49,19 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
   const confirm = useConfirm();
   const events = canvasData.events ?? [];
   const eras = canvasData.eras ?? [];
+  const calendar = canvasData.calendar;
   const sections = buildTimelineSections(events, eras);
   const articleById = new Map(articles.map((a) => [a.id, a]));
 
   const save = (changes: Partial<CanvasData>) => onChange({ ...canvasData, ...changes });
+
+  const saveCalendar = (value: TimelineCalendar | undefined) => {
+    // Without a calendar the field is left out rather than stored as undefined
+    const rest: CanvasData = { ...canvasData };
+    delete rest.calendar;
+    onChange(value ? { ...rest, calendar: value } : rest);
+    setEditing(null);
+  };
 
   const saveEvent = (value: Omit<TimelineEvent, 'id'>, existing?: TimelineEvent) => {
     save({
@@ -84,7 +106,13 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition-colors">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="font-mono text-[11px] text-gold font-semibold">{formatEventDate(event)}</div>
+              <div
+                className="font-mono text-[11px] text-gold font-semibold"
+                // With era-relative dates, the absolute date is a hover away
+                title={calendar?.eraDates ? formatAbsoluteDate(event, calendar) : undefined}
+              >
+                {formatEventDate(event, calendar, eras)}
+              </div>
               <h3 className="text-sm font-bold text-slate-100 mt-0.5">{event.title}</h3>
             </div>
             <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
@@ -136,6 +164,13 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
         >
           <Flag size={13} aria-hidden /> Add Era
         </button>
+        <button
+          onClick={() => setEditing({ kind: 'calendar' })}
+          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg text-xs border border-slate-700 flex items-center gap-1.5 shrink-0"
+          title="Month names, year labels and era dates"
+        >
+          <CalendarCog size={13} aria-hidden /> Calendar
+        </button>
         <span className="text-xs text-slate-400 ml-2 shrink-0">
           <strong>{events.length}</strong> events · <strong>{eras.length}</strong> eras
         </span>
@@ -168,7 +203,7 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
                         <h2 className="text-sm font-extrabold text-gold uppercase tracking-wider truncate">
                           {section.era.name}
                         </h2>
-                        <div className="text-[11px] text-slate-400 font-mono">{formatEraRange(section.era)}</div>
+                        <div className="text-[11px] text-slate-400 font-mono">{formatEraRange(section.era, calendar)}</div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -208,12 +243,21 @@ export default function TimelineCanvas({ canvasData, onChange, articles, onOpenA
         <EventModal
           event={editing.event}
           articles={articles}
+          calendar={calendar}
           onCancel={() => setEditing(null)}
           onSave={(value) => saveEvent(value, editing.event)}
         />
       )}
       {editing?.kind === 'era' && (
-        <EraModal era={editing.era} onCancel={() => setEditing(null)} onSave={(value) => saveEra(value, editing.era)} />
+        <EraModal
+          era={editing.era}
+          calendar={calendar}
+          onCancel={() => setEditing(null)}
+          onSave={(value) => saveEra(value, editing.era)}
+        />
+      )}
+      {editing?.kind === 'calendar' && (
+        <CalendarModal calendar={calendar} events={events} onCancel={() => setEditing(null)} onSave={saveCalendar} />
       )}
     </div>
   );
@@ -228,30 +272,34 @@ function ModalShell({
   onCancel,
   onSubmit,
   error,
+  initialFocus,
   children,
 }: {
   title: string;
   onCancel: () => void;
   onSubmit: () => void;
   error: string | null;
+  initialFocus?: RefObject<HTMLElement | null>;
   children: React.ReactNode;
 }) {
+  const titleId = useId();
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+    <Modal
+      onClose={onCancel}
+      labelledBy={titleId}
+      initialFocus={initialFocus}
+      overlayClassName="bg-black/70 backdrop-blur-sm p-4"
+      className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 text-parchment text-xs"
     >
       <form
-        role="dialog"
-        aria-label={title}
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit();
         }}
-        className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar p-6 text-parchment space-y-4 text-xs"
+        className="space-y-4"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gold">{title}</h2>
+          <h2 id={titleId} className="text-lg font-bold text-gold">{title}</h2>
           <button type="button" onClick={onCancel} className="p-1 text-slate-400 hover:text-gold" title="Close">
             <X size={16} aria-hidden />
           </button>
@@ -275,38 +323,43 @@ function ModalShell({
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
 function EventModal({
   event,
   articles,
+  calendar,
   onCancel,
   onSave,
 }: {
   event?: TimelineEvent;
   articles: LoreArticle[];
+  calendar?: TimelineCalendar;
   onCancel: () => void;
   onSave: (value: Omit<TimelineEvent, 'id'>) => void;
 }) {
+  const titleRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EventDraft>(() => eventToDraft(event));
+  const months = calendar?.months ?? [];
+  const monthDays = months[Number(draft.month) - 1]?.days;
   const [error, setError] = useState<string | null>(null);
   const set = (field: keyof EventDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setDraft((d) => ({ ...d, [field]: e.target.value }));
   const sortedArticles = [...articles].sort((a, b) => a.title.localeCompare(b.title));
 
   const submit = () => {
-    const result = parseEventDraft(draft);
+    const result = parseEventDraft(draft, calendar);
     if (result.ok) onSave(result.value);
     else setError(result.error);
   };
 
   return (
-    <ModalShell title={event ? 'Edit Event' : 'Add Event'} onCancel={onCancel} onSubmit={submit} error={error}>
+    <ModalShell title={event ? 'Edit Event' : 'Add Event'} onCancel={onCancel} onSubmit={submit} error={error} initialFocus={titleRef}>
       <div>
         <label htmlFor="event-title" className={labelClass}>Title *</label>
-        <input id="event-title" autoFocus value={draft.title} onChange={set('title')} placeholder="e.g. Coronation of Queen Mira" className={inputClass} />
+        <input id="event-title" ref={titleRef} value={draft.title} onChange={set('title')} placeholder="e.g. Coronation of Queen Mira" className={inputClass} />
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div>
@@ -315,13 +368,38 @@ function EventModal({
         </div>
         <div>
           <label htmlFor="event-month" className={labelClass}>Month</label>
-          <input id="event-month" inputMode="numeric" value={draft.month} onChange={set('month')} className={inputClass} />
+          {months.length > 0 ? (
+            <select id="event-month" value={draft.month} onChange={set('month')} className={inputClass}>
+              <option value="">None</option>
+              {months.map((m, i) => (
+                <option key={i} value={String(i + 1)}>
+                  {m.name}
+                </option>
+              ))}
+              {/* A month the calendar no longer names stays selectable */}
+              {Number(draft.month) > months.length && <option value={draft.month}>Month {draft.month}</option>}
+            </select>
+          ) : (
+            <input id="event-month" inputMode="numeric" value={draft.month} onChange={set('month')} className={inputClass} />
+          )}
         </div>
         <div>
           <label htmlFor="event-day" className={labelClass}>Day</label>
-          <input id="event-day" inputMode="numeric" value={draft.day} onChange={set('day')} className={inputClass} />
+          <input
+            id="event-day"
+            inputMode="numeric"
+            value={draft.day}
+            onChange={set('day')}
+            placeholder={monthDays ? `1–${monthDays}` : undefined}
+            className={inputClass}
+          />
         </div>
       </div>
+      {calendar?.beforeSuffix && (
+        <p className="text-[11px] text-slate-400 -mt-2">
+          Enter years before 0 as negative numbers; -30 shows as {formatYear(-30, calendar)}.
+        </p>
+      )}
       <div>
         <label htmlFor="event-end" className={labelClass}>End year (for wars, reigns…)</label>
         <input id="event-end" inputMode="numeric" value={draft.endYear} onChange={set('endYear')} className={inputClass} />
@@ -356,13 +434,16 @@ function EventModal({
 
 function EraModal({
   era,
+  calendar,
   onCancel,
   onSave,
 }: {
   era?: TimelineEra;
+  calendar?: TimelineCalendar;
   onCancel: () => void;
   onSave: (value: Omit<TimelineEra, 'id'>) => void;
 }) {
+  const nameRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<EraDraft>(() => eraToDraft(era));
   const [error, setError] = useState<string | null>(null);
   const set = (field: keyof EraDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -375,10 +456,10 @@ function EraModal({
   };
 
   return (
-    <ModalShell title={era ? 'Edit Era' : 'Add Era'} onCancel={onCancel} onSubmit={submit} error={error}>
+    <ModalShell title={era ? 'Edit Era' : 'Add Era'} onCancel={onCancel} onSubmit={submit} error={error} initialFocus={nameRef}>
       <div>
         <label htmlFor="era-name" className={labelClass}>Name *</label>
-        <input id="era-name" autoFocus value={draft.name} onChange={set('name')} placeholder="e.g. The Age of Ash" className={inputClass} />
+        <input id="era-name" ref={nameRef} value={draft.name} onChange={set('name')} placeholder="e.g. The Age of Ash" className={inputClass} />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -390,6 +471,94 @@ function EraModal({
           <input id="era-end" inputMode="numeric" value={draft.endYear} onChange={set('endYear')} placeholder="ongoing" className={inputClass} />
         </div>
       </div>
+      {calendar?.eraDates && (
+        <p className="text-[11px] text-slate-400">Dates in this era are counted from its start year, which is Year 1.</p>
+      )}
+    </ModalShell>
+  );
+}
+
+const EXAMPLE_EVENT: TimelineEvent = { id: 'example', title: '', year: 412, month: 1, day: 15 };
+
+function CalendarModal({
+  calendar,
+  events,
+  onCancel,
+  onSave,
+}: {
+  calendar?: TimelineCalendar;
+  events: TimelineEvent[];
+  onCancel: () => void;
+  onSave: (value: TimelineCalendar | undefined) => void;
+}) {
+  const monthsRef = useRef<HTMLTextAreaElement>(null);
+  const [draft, setDraft] = useState<CalendarDraft>(() => calendarToDraft(calendar));
+  const [error, setError] = useState<string | null>(null);
+  const set = (field: keyof CalendarDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setDraft((d) => ({ ...d, [field]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value }));
+
+  // A live example of how dates will look (skipped while the months don't parse)
+  const parsedMonths = parseMonthsText(draft.monthsText);
+  const preview = parsedMonths.ok
+    ? formatAbsoluteDate(EXAMPLE_EVENT, {
+        months: parsedMonths.value,
+        yearSuffix: draft.yearSuffix.trim() || undefined,
+        beforeSuffix: draft.beforeSuffix.trim() || undefined,
+      })
+    : null;
+
+  const submit = () => {
+    const result = parseCalendarDraft(draft, events);
+    if (result.ok) onSave(result.value);
+    else setError(result.error);
+  };
+
+  return (
+    <ModalShell title="Timeline Calendar" onCancel={onCancel} onSubmit={submit} error={error} initialFocus={monthsRef}>
+      <div>
+        <label htmlFor="calendar-months" className={labelClass}>Months</label>
+        <textarea
+          id="calendar-months"
+          ref={monthsRef}
+          rows={6}
+          value={draft.monthsText}
+          onChange={set('monthsText')}
+          placeholder={'One month per line, with its days after a colon:\nFrostmere: 30\nThaw: 28'}
+          className={`${inputClass} font-mono`}
+        />
+        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+          <span className="text-[11px] text-slate-400 mr-auto">Leave empty for numbered months.</span>
+          <button
+            type="button"
+            onClick={() => setDraft((d) => ({ ...d, monthsText: monthsToText(GREGORIAN_MONTHS) }))}
+            className="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]"
+          >
+            Use 12 standard months
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label htmlFor="calendar-suffix" className={labelClass}>Year label</label>
+          <input id="calendar-suffix" value={draft.yearSuffix} onChange={set('yearSuffix')} placeholder="e.g. AR" className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="calendar-before" className={labelClass}>Before year 0</label>
+          <input id="calendar-before" value={draft.beforeSuffix} onChange={set('beforeSuffix')} placeholder="e.g. BR" className={inputClass} />
+        </div>
+      </div>
+      <label className="flex items-start gap-2 text-slate-300 cursor-pointer">
+        <input type="checkbox" checked={draft.eraDates} onChange={set('eraDates')} className="mt-0.5 accent-gold" />
+        <span>
+          Count years from the start of each era
+          <span className="block text-[11px] text-slate-400">e.g. &ldquo;Year 3 of the Age of Ash&rdquo;. Hover a date to see the full year.</span>
+        </span>
+      </label>
+      {preview && (
+        <p className="text-[11px] text-slate-400">
+          Example: <span className="font-mono text-gold" data-testid="calendar-preview">{preview}</span>
+        </p>
+      )}
     </ModalShell>
   );
 }

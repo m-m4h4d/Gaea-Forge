@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@/components/Editor';
 import NewArticleModal from '@/components/NewArticleModal';
 import NewCanvasModal from '@/components/NewCanvasModal';
@@ -41,6 +41,8 @@ import { findArticleMaps } from '@/lib/mapView';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 import { useArticleSearch } from '@/hooks/useArticleSearch';
+import { loadViewState, resolveViewState, saveViewState } from '@/lib/viewState';
+import { describeRenamePlan, isEmptyRenamePlan, planRename } from '@/lib/rename';
 import { useColorMode } from '@/hooks/useColorMode';
 import { notifyStoredValueChange, useStoredValue } from '@/hooks/useStoredValue';
 import { nextColorMode } from '@/lib/colorMode';
@@ -78,6 +80,42 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [snapshots, setSnapshots] = useState<WorldSnapshot[]>([]);
+
+  // Recently opened articles and canvases, most recent first (for the quick switcher)
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+
+  // Reopen where the user left off. This waits for the real world to load: the seed
+  // shown before that doesn't have the saved article or canvas.
+  const [isViewRestored, setIsViewRestored] = useState(false);
+  if (world.isLoaded && !isViewRestored) {
+    setIsViewRestored(true);
+    const saved = loadViewState();
+    if (saved) {
+      const view = resolveViewState(saved, new Set(articles.map((a) => a.id)), new Set(canvases.map((c) => c.id)));
+      if (view.articleId) setActiveArticleId(view.articleId);
+      if (view.canvasId) setActiveCanvasId(view.canvasId);
+      if (view.viewMode) setActiveViewMode(view.viewMode);
+      if (view.collapsedCategories) setCollapsedCategories(new Set(view.collapsedCategories));
+      if (view.recentIds) setRecentIds(view.recentIds);
+      // The saved panel choice, except that narrow windows still start with them closed
+      if (view.sidebarOpen !== undefined) setIsSidebarOpen(view.sidebarOpen && window.innerWidth >= 768);
+      if (view.inspectorOpen !== undefined) setIsInspectorOpen(view.inspectorOpen && window.innerWidth >= 1100);
+    }
+  }
+
+  useEffect(() => {
+    // Until the saved view is restored, these are just the defaults; don't overwrite it
+    if (!isViewRestored) return;
+    saveViewState({
+      viewMode: activeViewMode,
+      articleId: activeArticleId,
+      canvasId: activeCanvasId,
+      sidebarOpen: isSidebarOpen,
+      inspectorOpen: isInspectorOpen,
+      collapsedCategories: [...collapsedCategories],
+      recentIds,
+    });
+  }, [isViewRestored, activeViewMode, activeArticleId, activeCanvasId, isSidebarOpen, isInspectorOpen, collapsedCategories, recentIds]);
 
   const activeArticle = articles.find((a) => a.id === activeArticleId) || articles[0];
   const activeCanvas = canvases.find((c) => c.id === activeCanvasId) || canvases[0];
@@ -118,8 +156,6 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isImportModalOpen]);
 
-  // Recently opened articles and canvases, most recent first (for the quick switcher)
-  const [recentIds, setRecentIds] = useState<string[]>([]);
   const [isQuickSwitcherOpen, setIsQuickSwitcherOpen] = useState(false);
 
   const openArticle = (id: string) => {
@@ -191,6 +227,29 @@ export default function Home() {
     setCollapsedCategories(new Set(displayCategories.filter((c) => !expanded.has(c))));
 
   // ---- Articles ----
+
+  // The latest world, for notice actions that run after later renders
+  const worldRef = useRef({ articles, canvases });
+  useEffect(() => {
+    worldRef.current = { articles, canvases };
+  });
+
+  // After a rename, offer to update text that still shows the old title
+  const handleRenamed = (articleId: string, oldTitle: string, newTitle: string) => {
+    const plan = planRename(articleId, oldTitle, newTitle, articles, canvases);
+    if (isEmptyRenamePlan(plan)) return;
+    showNotice('success', `Renamed. Update ${describeRenamePlan(plan)} to "${newTitle.trim()}"?`, {
+      label: 'Update',
+      onClick: () => {
+        // Re-plan against the world as it is now, in case it changed meanwhile
+        const { articles: current, canvases: currentCanvases } = worldRef.current;
+        const latest = planRename(articleId, oldTitle, newTitle, current, currentCanvases);
+        latest.articles.forEach(world.updateArticle);
+        latest.canvases.forEach(world.updateCanvas);
+        if (!isEmptyRenamePlan(latest)) showNotice('success', `Updated ${describeRenamePlan(latest)}.`);
+      },
+    });
+  };
 
   const handleContentChange = (newContent: string) => {
     if (!activeArticle || activeArticle.content === newContent) return;
@@ -462,6 +521,7 @@ export default function Home() {
           article={activeArticle}
           categories={displayCategories}
           onUpdate={world.updateArticle}
+          onRenamed={handleRenamed}
           onDelete={handleDeleteActiveArticle}
           onTagClick={setSelectedTagFilter}
           backlinks={backlinks}

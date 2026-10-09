@@ -19,6 +19,18 @@ const canvasSchemaV0 = {
   required: ['id', 'title', 'type', 'nodes', 'connections', 'last_updated'],
 } as const;
 
+// The canvas schema before timeline calendars (version 1)
+const canvasSchemaV1 = {
+  ...canvasSchemaV0,
+  version: 1,
+  properties: {
+    ...canvasSchemaV0.properties,
+    events: { type: 'array', items: { type: 'object' } },
+    eras: { type: 'array', items: { type: 'object' } },
+    mapImage: { type: 'string' },
+  },
+} as const;
+
 const oldCanvas: CanvasData = {
   id: 'canvas-old',
   title: 'Old Web',
@@ -50,6 +62,36 @@ describe('database migrations', () => {
     expect(doc?.toJSON()).toEqual(oldCanvas);
     // The old canvas counts, so the seed canvases are not added on top
     expect(await db.canvases.count().exec()).toBe(1);
+    await db.remove();
+  });
+
+  it('keeps timelines saved with schema v1 and lets them gain a calendar', async () => {
+    const storage = getRxStorageMemory();
+    const timeline: CanvasData = {
+      id: 'canvas-tl-v1',
+      title: 'Chronicle',
+      type: 'timeline',
+      nodes: [],
+      connections: [],
+      events: [{ id: 'e1', title: 'Founding', year: 412, month: 3, day: 15 }],
+      eras: [{ id: 'era1', name: 'the Restoration', startYear: 410 }],
+      last_updated: 7,
+    };
+    const old = await createRxDatabase({ name: 'migrate-v1', storage });
+    await old.addCollections({
+      articles: { schema: loreArticleSchema },
+      canvases: { schema: canvasSchemaV1, migrationStrategies: { 1: (d: CanvasData) => d } },
+      snapshots: { schema: snapshotSchema },
+    });
+    await old.canvases.insert(timeline);
+    await old.close();
+
+    const db = await openGaeaDatabase('migrate-v1', storage);
+    const doc = await db.canvases.findOne('canvas-tl-v1').exec();
+    expect(doc?.toJSON()).toEqual(timeline);
+    const withCalendar = { ...timeline, calendar: { months: [{ name: 'Frostmere', days: 30 }], yearSuffix: 'AR' } };
+    await db.canvases.upsert(withCalendar);
+    expect((await db.canvases.findOne('canvas-tl-v1').exec())?.toJSON()).toEqual(withCalendar);
     await db.remove();
   });
 

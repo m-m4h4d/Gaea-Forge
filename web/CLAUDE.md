@@ -53,13 +53,16 @@ web/src/
     importRules.ts        Keyword rules that sort imported entries into categories (user-editable)
     familyTreeLayout.ts   Family tree auto-arrange
     links.ts              Article links: extraction, backlinks, [[Title]] resolution
+    rename.ts             After a rename: link labels, heading and canvas labels still showing the old title
     roles.ts              Workspace roles: categories, wording, theme colors
     colorMode.ts          Color mode types and resolution
     categoryColors.ts     Category -> color (keyword based, works for every role)
     timeline.ts           Timeline ordering, eras, date labels, form validation
+    calendar.ts           A timeline's own calendar: month names/lengths, year labels, era-relative dates
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
     quickSwitch.ts        Quick switcher ranking and recent items
+    viewState.ts          The last view (open article/canvas, panels, folders, recents), saved per device
     threeDispose.ts       Freeing Three.js GPU resources (geometries, materials, textures)
     saveFile.ts           Saving files: native Save dialog in the desktop app, download in browsers
     assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
@@ -80,11 +83,12 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
   - Report failures to the user with `notify`/`showNotice`, not only `console`.
 - Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
-- Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
+- Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar, months 1-based; an optional `calendar` (schema v2, `lib/calendar.ts`) only changes how dates are entered, checked and shown, so events never need converting; `parseCalendarDraft` refuses calendars that would leave an event's month or day out of range; backups keep it through `normalizeCalendar`) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
 - Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
 - Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`). `deleteArticle` returns an undo function that restores the article and merges those links back into the current canvases (`restoreArticleLinks`), so edits made after the delete are kept.
 - Search (`lib/search.ts`) indexes article text as plain text (`htmlToPlainText`), never raw HTML, so markup and link ids can't match. `ArticleSearchIndex.sync` re-indexes only articles whose object changed, which relies on edits replacing article objects rather than mutating them.
-- Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken.
+- The last view is saved in localStorage (`gaea_view_state`, `lib/viewState.ts`): it is per-device UI state, so it stays out of the database and backups. `page.tsx` restores it once `useWorld().isLoaded` is true, which waits for the database and for canvases recovered from the unload journal, and checks every saved id still exists (`resolveViewState`). It only starts saving after that restore, so the defaults never overwrite a saved view.
+- Links between articles are stored in article HTML as `<a data-lore-link="articleId">label</a>` (`lib/links.ts`), keyed by id so renames never break them. Backlinks and world-web link lines are computed from content, not stored. Links to deleted articles are kept and shown as broken. Link labels are copies of text, though: after a rename (the inspector reports it when the title field loses focus), `page.tsx` offers to update labels, the article's heading and canvas node labels/event titles that are exactly the old title (`planRename`); custom wording is never touched.
 - The backup file format is defined in `lib/backup.ts` (`format: 'gaea-forge-backup'`, `version`). Bump `BACKUP_VERSION` for incompatible changes and keep reading older versions.
 
 ## Importer

@@ -2,6 +2,7 @@ import { addRxPlugin, createRxDatabase, RxCollection, RxDatabase, RxStorage } fr
 import { RxDBMigrationSchemaPlugin } from 'rxdb/plugins/migration-schema';
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 import { Asset, assetSchema, moveInlineImagesToAssets, sweepUnusedAssets } from './assets';
+import type { TimelineCalendar } from './calendar';
 
 // Needed for schema version bumps (migrationStrategies)
 addRxPlugin(RxDBMigrationSchemaPlugin);
@@ -90,6 +91,8 @@ export type CanvasData = {
   // Timeline canvases
   events?: TimelineEvent[];
   eras?: TimelineEra[];
+  // The timeline's own calendar (lib/calendar.ts); none means plain numbered dates
+  calendar?: TimelineCalendar;
   // Map canvases: the map image as a data URL
   mapImage?: string;
   last_updated: number;
@@ -156,8 +159,8 @@ export const loreArticleSchema = {
 } as const;
 
 export const canvasSchema = {
-  // v1 added events, eras and mapImage for timeline and map canvases
-  version: 1,
+  // v1 added events, eras and mapImage for timeline and map canvases; v2 added calendar
+  version: 2,
   primaryKey: 'id',
   type: 'object',
   properties: {
@@ -197,6 +200,9 @@ export const canvasSchema = {
     },
     mapImage: {
       type: 'string'
+    },
+    calendar: {
+      type: 'object'
     },
     last_updated: {
       type: 'number'
@@ -335,8 +341,9 @@ export const INITIAL_SEED_CANVASES: CanvasData[] = [
 // Never change a schema without bumping its version and adding a strategy here,
 // or existing databases fail to open.
 export const canvasMigrationStrategies = {
-  // v0 -> v1 only added optional fields
+  // v0 -> v1 and v1 -> v2 only added optional fields
   1: (oldDoc: CanvasData) => oldDoc,
+  2: (oldDoc: CanvasData) => oldDoc,
 };
 
 // Open (or create) the database with every collection, migrating and seeding as

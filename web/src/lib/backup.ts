@@ -3,6 +3,7 @@ import { CANVAS_TYPES, CanvasData, GaeaDatabase, LoreArticle, TimelineEra, Timel
 import { ROLES, RoleId } from './roles';
 import { sanitizeImportedHtml } from './sanitizeHtml';
 import { externalizeImages, inlineImages, isImageDataUrl } from './assets';
+import { normalizeCalendar } from './calendar';
 
 export const BACKUP_FORMAT = 'gaea-forge-backup';
 export const BACKUP_VERSION = 1;
@@ -113,6 +114,7 @@ function normalizeCanvas(c: CanvasData): CanvasData {
     eras: Array.isArray(c.eras)
       ? c.eras.map(normalizeEra).filter((e): e is TimelineEra => e !== null)
       : undefined,
+    calendar: normalizeCalendar(c.calendar),
     // Only image data URLs; anything else is dropped
     mapImage:
       typeof c.mapImage === 'string' && c.mapImage.startsWith('data:image/') ? c.mapImage : undefined,

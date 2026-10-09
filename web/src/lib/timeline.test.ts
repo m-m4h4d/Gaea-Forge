@@ -30,6 +30,25 @@ describe('compareEvents', () => {
   });
 });
 
+describe('dates with a calendar', () => {
+  const calendar = { months: [{ name: 'Frostmere', days: 30 }, { name: 'Thaw' }], yearSuffix: 'AR', eraDates: true };
+  const restoration = era('the Restoration', 410, 450);
+  it('formats event dates and era ranges with the calendar', () => {
+    expect(formatEventDate(ev('x', 412, { month: 1, day: 15 }), calendar, [restoration])).toBe('15 Frostmere, Year 3 of the Restoration');
+    expect(formatEventDate(ev('x', 300), calendar, [restoration])).toBe('300 AR');
+    expect(formatEraRange(restoration, calendar)).toBe('410 AR – 450 AR');
+  });
+
+  it('checks months and days against the calendar when parsing the form', () => {
+    const draft = { ...eventToDraft(), title: 'Feast', year: '412', month: '1', day: '31' };
+    expect(parseEventDraft(draft, calendar)).toEqual({ ok: false, error: 'This date is on day 31 of Frostmere, which has 30 days.' });
+    expect(parseEventDraft({ ...draft, month: '3', day: '' }, calendar)).toMatchObject({ ok: false });
+    expect(parseEventDraft({ ...draft, day: '30' }, calendar)).toMatchObject({ ok: true });
+    // Without a calendar any positive month and day are fine, as before
+    expect(parseEventDraft(draft)).toMatchObject({ ok: true });
+  });
+});
+
 describe('formatEventDate / formatEraRange', () => {
   it('formats years, months, days and spans', () => {
     expect(formatEventDate(ev('x', 412))).toBe('412');

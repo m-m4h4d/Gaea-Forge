@@ -32,6 +32,7 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 - 🛟 **Safety Snapshots**: Before any import or restore that replaces your world, a snapshot is saved automatically; the last five can be restored in one click.
 - ↩️ **Undo Deletes**: Deleting an article or canvas shows an **Undo** button for a few seconds; undoing an article also restores its places on canvases, maps and timelines.
 - 📍 **Picks Up Where You Left Off**: Reopening the app returns to the article or canvas you had open, with your panels, collapsed folders and recent items as you left them.
+- 🗂️ **Safe with Several Tabs**: If the app is open in more than one tab, one tab edits at a time so changes never overwrite each other; another tab can take over with one click.
 - 💾 **Autosave with Recovery**: Changes save automatically (`Ctrl/Cmd+S` saves immediately), and edits made just before the app closes are recovered on the next start.
 
 ### Look & platform

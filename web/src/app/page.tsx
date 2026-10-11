@@ -15,6 +15,7 @@ import AppHeader from '@/components/AppHeader';
 import EntityInspector from '@/components/EntityInspector';
 import NoticeToast from '@/components/NoticeToast';
 import QuickSwitcher from '@/components/QuickSwitcher';
+import OtherTabNotice from '@/components/OtherTabNotice';
 import { ConfirmOptions, useConfirm } from '@/components/dialogs/DialogProvider';
 import { pushRecent, SwitchItem } from '@/lib/quickSwitch';
 import { CanvasType, LoreArticle, LoreCategory, WorldSnapshot } from '@/lib/database';
@@ -41,6 +42,7 @@ import { findArticleMaps } from '@/lib/mapView';
 import { useNotice } from '@/hooks/useNotice';
 import { useWorld } from '@/hooks/useWorld';
 import { useArticleSearch } from '@/hooks/useArticleSearch';
+import { useTabLock } from '@/hooks/useTabLock';
 import { loadViewState, resolveViewState, saveViewState } from '@/lib/viewState';
 import { describeRenamePlan, isEmptyRenamePlan, planRename } from '@/lib/rename';
 import { loadTemplates, templateForCategory } from '@/lib/templates';
@@ -52,6 +54,9 @@ export default function Home() {
   const { notice, showNotice, dismissNotice } = useNotice();
   const confirm = useConfirm();
   const world = useWorld(showNotice);
+  // One tab edits at a time; a tab that loses the lock saves what it has first
+  const tab = useTabLock(() => world.saveEverything());
+  const isEditingTab = tab.role === 'active';
   const { articles, canvases } = world;
   const { mode: colorMode, setMode: setColorMode } = useColorMode();
 
@@ -172,7 +177,9 @@ export default function Home() {
   };
 
   // Ctrl/Cmd+K opens the quick switcher from anywhere, including the editor
+  // (not in a tab waiting for another tab, whose notice covers everything)
   useEffect(() => {
+    if (!isEditingTab) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -181,7 +188,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [isEditingTab]);
 
   const quickSwitchItems: SwitchItem[] = [
     ...articles.map((a): SwitchItem => ({ kind: 'article', id: a.id, title: a.title, detail: a.category })),
@@ -571,6 +578,7 @@ export default function Home() {
       />
 
       <NoticeToast notice={notice} onDismiss={dismissNotice} />
+      {!isEditingTab && <OtherTabNotice onTakeOver={tab.takeOver} isTakingOver={tab.isTakingOver} />}
 
       {isQuickSwitcherOpen && (
         <QuickSwitcher

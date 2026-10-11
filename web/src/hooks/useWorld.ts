@@ -342,6 +342,11 @@ export function useWorld(notify: Notify) {
     saveStatus: saver.status,
     saveError: saver.error,
     flushSaves: saver.flush,
+    // Write every pending article and canvas change (e.g. before another tab takes over)
+    saveEverything: async () => {
+      await saver.flush();
+      await canvasSaver.settle();
+    },
     updateArticle,
     setArticleCover,
     storeImage,

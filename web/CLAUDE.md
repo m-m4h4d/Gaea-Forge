@@ -36,6 +36,7 @@ web/src/
     useStoredValue.ts     localStorage values read without hydration mismatches
     useImageUrl.ts        Displayable URL for an image field (asset reference or legacy inline data)
     useArticleSearch.ts   Sidebar search results from a session-long, incrementally synced index
+    useTabLock.ts         Whether this tab may edit (one editing tab at a time), and taking over
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
     dialogs/DialogProvider.tsx  Styled confirmation dialogs (useConfirm)
     dialogs/Modal.tsx     Shared modal shell: dialog role, Escape to close, focus trap
@@ -63,6 +64,7 @@ web/src/
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
     quickSwitch.ts        Quick switcher ranking and recent items
+    tabLock.ts            Web Lock + BroadcastChannel handoff so only one tab edits the world
     viewState.ts          The last view (open article/canvas, panels, folders, recents), saved per device
     threeDispose.ts       Freeing Three.js GPU resources (geometries, materials, textures)
     saveFile.ts           Saving files: native Save dialog in the desktop app, download in browsers
@@ -83,6 +85,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
   - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which waits for pending writes and saves a snapshot first.
   - RxDB bulk calls (`bulkInsert`, `bulkUpsert`, `bulkRemove`) report failures in their return value instead of throwing. Use the helpers in `lib/backup.ts`, which check it.
   - Report failures to the user with `notify`/`showNotice`, not only `console`.
+- **One editing tab at a time** (`lib/tabLock.ts`, `useTabLock`). Saves write whole documents, so two tabs typing in the same article within the save delay lost one tab's text. The first tab holds a Web Lock; later tabs show `OtherTabNotice` and wait (RxDB's cross-tab events keep them current) until the user takes over or the editing tab closes. On takeover the old tab runs `world.saveEverything()` and posts on a BroadcastChannel before the new tab starts editing. Anything that edits must stay behind that notice (e.g. the Ctrl+K handler is off in a waiting tab). Without Web Locks every tab edits, as before.
 - Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
 - Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar, months 1-based; an optional `calendar` (schema v2, `lib/calendar.ts`) only changes how dates are entered, checked and shown, so events never need converting; `parseCalendarDraft` refuses calendars that would leave an event's month or day out of range; backups keep it through `normalizeCalendar`) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).

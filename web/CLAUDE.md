@@ -36,6 +36,7 @@ web/src/
     useStoredValue.ts     localStorage values read without hydration mismatches
     useImageUrl.ts        Displayable URL for an image field (asset reference or legacy inline data)
     useArticleSearch.ts   Sidebar search results from a session-long, incrementally synced index
+    useTabLock.ts         Whether this tab may edit (one editing tab at a time), and taking over
   components/             UI (Sidebar, AppHeader, EntityInspector, Editor, modals)
     dialogs/DialogProvider.tsx  Styled confirmation dialogs (useConfirm)
     dialogs/Modal.tsx     Shared modal shell: dialog role, Escape to close, focus trap
@@ -63,9 +64,11 @@ web/src/
     mapView.ts            Map pan/zoom math and image <-> viewport coordinates
     images.ts             Reading (and downscaling) uploaded images
     quickSwitch.ts        Quick switcher ranking and recent items
+    tabLock.ts            Web Lock + BroadcastChannel handoff so only one tab edits the world
     viewState.ts          The last view (open article/canvas, panels, folders, recents), saved per device
     threeDispose.ts       Freeing Three.js GPU resources (geometries, materials, textures)
     saveFile.ts           Saving files: native Save dialog in the desktop app, download in browsers
+    markdownExport.ts     Markdown export: a .zip of files (front matter, relative links, images) or one document
     assets.ts             Image storage: the assets collection, asset references, moving/inlining/cleanup
 web/public/theme-init.js  Applies the saved color mode and role colors before first paint
 web/e2e/                  Playwright tests against the static export (fixtures.ts has shared helpers)
@@ -82,11 +85,13 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
   - Anything that replaces the world goes through `replaceWorldSafely` in `useWorld`, which waits for pending writes and saves a snapshot first.
   - RxDB bulk calls (`bulkInsert`, `bulkUpsert`, `bulkRemove`) report failures in their return value instead of throwing. Use the helpers in `lib/backup.ts`, which check it.
   - Report failures to the user with `notify`/`showNotice`, not only `console`.
+- **One editing tab at a time** (`lib/tabLock.ts`, `useTabLock`). Saves write whole documents, so two tabs typing in the same article within the save delay lost one tab's text. The first tab holds a Web Lock; later tabs show `OtherTabNotice` and wait (RxDB's cross-tab events keep them current) until the user takes over or the editing tab closes. On takeover the old tab runs `world.saveEverything()` and posts on a BroadcastChannel before the new tab starts editing. Anything that edits must stay behind that notice (e.g. the Ctrl+K handler is off in a waiting tab). Without Web Locks every tab edits, as before.
 - Article edits are debounced by `useArticleSaver`. Database change events are merged with unsaved local edits (`mergeWithPending`) so they never overwrite newer text. Deleting or overwriting an article must call `discard` for its id first, or a pending save will bring it back.
 - `Editor.tsx` ignores `content` props that echo its own earlier output. Only genuinely external changes (imports, restores) reset the document.
 - Canvas types: `world-web`, `family-tree`, `timeline` (events and eras in `events`/`eras`; years are plain numbers in the world's calendar, months 1-based; an optional `calendar` (schema v2, `lib/calendar.ts`) only changes how dates are entered, checked and shown, so events never need converting; `parseCalendarDraft` refuses calendars that would leave an event's month or day out of range; backups keep it through `normalizeCalendar`) and `map` (`mapImage` data URL; pins are `nodes` with x/y as 0-1 fractions of the image).
 - Canvas writes go through `useCanvasSaver`: queued so they reach the database in order, unconfirmed versions win over (possibly late) database change events, and a localStorage journal recovers edits made just before the page closes. Articles get the same protection from `useArticleSaver`. Keep canvas edits going through `updateCanvas` in `useWorld`.
 - Deleting an article must also remove its canvas nodes, map pins and their connections, and unlink (not delete) its timeline events (`pruneCanvasesToArticles`). `deleteArticle` returns an undo function that restores the article and merges those links back into the current canvases (`restoreArticleLinks`), so edits made after the delete are kept.
+- Markdown export (`lib/markdownExport.ts`) is loaded on demand from `useWorld.exportMarkdown`, so turndown and fflate stay out of the initial bundle. It reads the world through `readWorld` (images inline) like backups do. It is one-way: backups (`.json`) are the restore format.
 - New articles take their category's template (`lib/templates.ts`): built-in ones are chosen by keywords in the category name, like category colors, so keep their vocabulary generic. Users can override a category's template; overrides live in localStorage (`gaea_category_templates`), like the import rules, so they are per device and not in backups. Create articles through `createArticleDraft` with `templateForCategory(...)` so every entry point (New Article, `[[` create, quick switcher) agrees.
 - Search (`lib/search.ts`) indexes article text as plain text (`htmlToPlainText`), never raw HTML, so markup and link ids can't match. `ArticleSearchIndex.sync` re-indexes only articles whose object changed, which relies on edits replacing article objects rather than mutating them.
 - The last view is saved in localStorage (`gaea_view_state`, `lib/viewState.ts`): it is per-device UI state, so it stays out of the database and backups. `page.tsx` restores it once `useWorld().isLoaded` is true, which waits for the database and for canvases recovered from the unload journal, and checks every saved id still exists (`resolveViewState`). It only starts saving after that restore, so the defaults never overwrite a saved view.
@@ -118,7 +123,7 @@ Keep `page.tsx` as wiring. Put data logic in `hooks/` or `lib/`, and anything th
 - Never use `window.confirm`, `alert` or `prompt` (the e2e fixtures fail on native dialogs). Ask with `useConfirm()` (`tone: 'danger'` for destructive actions). Prefer Undo over asking: deleting whole articles or canvases happens at once and shows a notice with an Undo action (`showNotice(kind, text, { label, onClick })`).
 - Build new modals on `components/dialogs/Modal.tsx` so they get Escape and keyboard focus handling; pass `initialFocus` instead of using `autoFocus`.
 - Three.js objects removed from the 3D scene must be freed with `removeAndDispose`/`disposeObject3D` (`lib/threeDispose.ts`); removing them from the scene alone leaks GPU memory. The scene setup effect must not depend on UI state, or the scene is rebuilt without its nodes. `e2e/cosmos.spec.ts` checks the live geometry count (`data-gpu-geometries`).
-- Save files the user keeps with `saveJsonFile` (`lib/saveFile.ts`), never `<a download>` directly: downloads are unreliable in the desktop webviews, so the desktop app calls the `save_json_file` Rust command (`src-tauri/src/lib.rs`). Keep `@tauri-apps/api` on the same major.minor version as the `tauri` crate; the Tauri CLI fails the build otherwise. `e2e/desktop.spec.ts` fakes the Tauri bridge to test the desktop path.
+- Save files the user keeps with `saveFile` / `saveJsonFile` (`lib/saveFile.ts`), never `<a download>` directly: downloads are unreliable in the desktop webviews, so the desktop app calls the `save_file` Rust command (`src-tauri/src/lib.rs`), which takes the contents as base64 so binary files (zips) work. Keep `@tauri-apps/api` on the same major.minor version as the `tauri` crate; the Tauri CLI fails the build otherwise. `e2e/desktop.spec.ts` fakes the Tauri bridge to test the desktop path.
 - New behavior needs a test: a Vitest unit test for logic in `lib/`, and a Playwright test in `e2e/` for user-visible flows that touch persistence.
 
 @AGENTS.md

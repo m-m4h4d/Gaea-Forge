@@ -1,14 +1,14 @@
 import { createArticle, expect, openApp, openBackupTab, test } from './fixtures';
 
 // Stand in for the Tauri bridge: the app sees window.isTauri and calls Rust commands
-// through __TAURI_INTERNALS__.invoke. `reply` decides what the fake save_json_file returns.
+// through __TAURI_INTERNALS__.invoke. `reply` decides what the fake save_file returns.
 async function fakeDesktop(page: import('@playwright/test').Page, reply: 'save' | 'cancel' | 'fail') {
   await page.addInitScript((mode) => {
     const w = window as unknown as Record<string, unknown>;
     w.isTauri = true;
     w.__tauriCalls = [];
     w.__TAURI_INTERNALS__ = {
-      invoke: async (cmd: string, args: { defaultName: string; contents: string }) => {
+      invoke: async (cmd: string, args: Call['args']) => {
         (w.__tauriCalls as unknown[]).push({ cmd, args });
         if (mode === 'fail') throw 'Could not write /readonly/backup.json: permission denied';
         return mode === 'save' ? `/home/me/${args.defaultName}` : null;
@@ -17,7 +17,8 @@ async function fakeDesktop(page: import('@playwright/test').Page, reply: 'save' 
   }, reply);
 }
 
-type Call = { cmd: string; args: { defaultName: string; contents: string } };
+type Call = { cmd: string; args: { defaultName: string; contentsBase64: string; filterName: string; extensions: string[] } };
+const decode = (base64: string) => Buffer.from(base64, 'base64').toString('utf8');
 const calls = (page: import('@playwright/test').Page) =>
   page.evaluate(() => (window as unknown as { __tauriCalls: Call[] }).__tauriCalls);
 
@@ -33,8 +34,9 @@ test('the desktop app saves backups through the native Save dialog', async ({ pa
 
   await expect(page.getByText(/^Backup saved to \/home\/me\/gaea-forge-backup-\d{4}-\d{2}-\d{2}\.json$/)).toBeVisible();
   const [call] = await calls(page);
-  expect(call.cmd).toBe('save_json_file');
-  const backup = JSON.parse(call.args.contents);
+  expect(call.cmd).toBe('save_file');
+  expect(call.args).toMatchObject({ filterName: 'JSON backup', extensions: ['json'] });
+  const backup = JSON.parse(decode(call.args.contentsBase64));
   expect(backup.format).toBe('gaea-forge-backup');
   expect(backup.articles.map((a: { title: string }) => a.title)).toContain('Desktop Keep');
   expect(downloads).toBe(0);

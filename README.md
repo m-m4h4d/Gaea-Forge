@@ -151,7 +151,7 @@ The output binaries will be located under `src-tauri/target/release/bundle/`.
 
 ### Publish a Release
 
-Pushing a version tag builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release with the installers (`.github/workflows/release.yml`). The tag must match `version` in `src-tauri/tauri.conf.json` (keep `src-tauri/Cargo.toml` in step):
+The **Release** workflow (`.github/workflows/release.yml`) builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release with the installers, for the `version` in `src-tauri/tauri.conf.json` (keep `src-tauri/Cargo.toml` in step). Start it from the repository's **Actions** tab (**Release → Run workflow** on `master`; it creates the `vX.Y.Z` tag), or by pushing the tag yourself:
 
 ```bash
 git tag v0.1.0

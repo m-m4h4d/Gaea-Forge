@@ -21,7 +21,7 @@ Run from the repo root (npm workspaces) or from `web/`:
 
 CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus a Linux desktop build and `cargo clippy -- -D warnings` in `src-tauri`.
 
-Releases: pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which builds Windows (`.exe` installer, `.msi`), macOS (universal `.dmg`) and Linux (`.AppImage`, `.deb`) and publishes a GitHub Release. The tag must equal `version` in `src-tauri/tauri.conf.json` (the workflow checks; bump `Cargo.toml` and `tauri.conf.json` together). Installers are uploaded under fixed names (`Gaea-Forge-Windows-x64-setup.exe`, ...) so `lib/downloads.ts` and the README can link to `releases/latest/download/<name>`; keep those names in step with the workflow. The web version's header links to the Windows installer; the desktop app hides it (`useIsDesktopApp`).
+Releases: `.github/workflows/release.yml` runs from the Actions tab (Run workflow; it creates the tag) or when a tag `vX.Y.Z` is pushed; it builds Windows (`.exe` installer, `.msi`), macOS (universal `.dmg`) and Linux (`.AppImage`, `.deb`) and publishes a GitHub Release. The release is for `version` in `src-tauri/tauri.conf.json` (a pushed tag must match it, the workflow checks; bump `Cargo.toml` and `tauri.conf.json` together). Installers are uploaded under fixed names (`Gaea-Forge-Windows-x64-setup.exe`, ...) so `lib/downloads.ts` and the README can link to `releases/latest/download/<name>`; keep those names in step with the workflow. The web version's header links to the Windows installer; the desktop app hides it (`useIsDesktopApp`).
 
 ## Layout
 

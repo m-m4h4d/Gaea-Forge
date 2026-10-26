@@ -6,7 +6,9 @@ import { RoleConfig } from '@/lib/roles';
 import { SaveStatus } from '@/hooks/useArticleSaver';
 import { ColorMode } from '@/lib/colorMode';
 import { ViewMode } from './Sidebar';
-import { ChevronDown, FileText, Menu, Monitor, Moon, PanelRight, Pin, Sun, Trash2 } from 'lucide-react';
+import { ChevronDown, Download, FileText, Menu, Monitor, Moon, PanelRight, Pin, Sun, Trash2 } from 'lucide-react';
+import { WINDOWS_INSTALLER_URL } from '@/lib/downloads';
+import { useIsDesktopApp } from '@/hooks/useIsDesktopApp';
 import { CANVAS_TYPE_INFO } from './canvasTypes';
 import RoleIcon from './RoleIcon';
 
@@ -58,6 +60,7 @@ export default function AppHeader({
   colorMode,
   onCycleColorMode,
 }: AppHeaderProps) {
+  const isDesktopApp = useIsDesktopApp();
   const ColorModeIcon = colorMode === 'dark' ? Moon : colorMode === 'light' ? Sun : Monitor;
 
   return (
@@ -100,6 +103,19 @@ export default function AppHeader({
 
         {/* Right Header Controls */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* The web version offers the desktop app; the desktop app doesn't */}
+          {!isDesktopApp && (
+            <a
+              href={WINDOWS_INSTALLER_URL}
+              className="px-2 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 text-slate-300 hover:text-gold hover:border-gold/60 transition-colors shrink-0 flex items-center gap-1.5 text-xs font-semibold"
+              title="Download Gaea Forge for Windows (installer from the latest GitHub release)"
+              aria-label="Download the Windows app"
+            >
+              <Download size={14} aria-hidden />
+              <span className="hidden xl:inline">Windows app</span>
+            </a>
+          )}
+
           {/* Color mode: dark -> light -> system */}
           <button
             onClick={onCycleColorMode}

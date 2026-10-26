@@ -6,6 +6,20 @@ Gaea Forge is a privacy-first, offline-capable workbench for writers, game desig
 
 ---
 
+## ⬇️ Download
+
+Get the desktop app from the [latest release](https://github.com/m-m4h4d/Gaea-Forge/releases/latest):
+
+| Platform | Download |
+| :--- | :--- |
+| **Windows** 10/11 (64-bit) | [Installer (.exe)](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Windows-x64-setup.exe) · [.msi](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Windows-x64.msi) |
+| **macOS** (Apple Silicon and Intel) | [.dmg](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-macOS-universal.dmg) |
+| **Linux** (x86_64) | [.AppImage](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Linux-x86_64.AppImage) · [.deb](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Linux-amd64.deb) |
+
+The builds are not code-signed yet: on Windows, SmartScreen may ask you to confirm (**More info → Run anyway**); on macOS, right-click the app and choose **Open** the first time. The web version links to the Windows installer from its header. The desktop app and the web version keep separate data; move a world between them with a backup (*Import → Backup & Restore*).
+
+---
+
 ## ✨ Features
 
 ### Writing & organizing
@@ -134,6 +148,15 @@ npm run tauri build
 ```
 
 The output binaries will be located under `src-tauri/target/release/bundle/`.
+
+### Publish a Release
+
+The **Release** workflow (`.github/workflows/release.yml`) builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release with the installers, for the `version` in `src-tauri/tauri.conf.json` (keep `src-tauri/Cargo.toml` in step). Start it from the repository's **Actions** tab (**Release → Run workflow** on `master`; it creates the `vX.Y.Z` tag), or by pushing the tag yourself:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 ### Build Static Web Distribution
 

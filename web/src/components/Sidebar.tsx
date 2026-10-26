@@ -80,9 +80,9 @@ export default function Sidebar({
             <div className="flex items-center gap-2.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo.png"
+                src="/emblem.png"
                 alt="Gaea-Forge Logo"
-                className="w-9 h-9 rounded-lg object-cover border border-gold/30 shadow-md shadow-gold/20"
+                className="w-9 h-9 rounded-full shadow-md shadow-gold/20"
               />
               <div>
                 <h1 className="text-base font-bold tracking-wider text-gold">Gaea-Forge</h1>

@@ -23,6 +23,8 @@ CI (`.github/workflows/ci.yml`) runs all of these on every pull request, plus a 
 
 Releases: `.github/workflows/release.yml` runs from the Actions tab (Run workflow: it makes a draft release, published by hand, which creates the tag; the workflow's token couldn't create the tag itself) or when a tag `vX.Y.Z` is pushed (published directly); it builds Windows (`.exe` installer, `.msi`), macOS (universal `.dmg`) and Linux (`.AppImage`, `.deb`) and publishes a GitHub Release. The release is for `version` in `src-tauri/tauri.conf.json` (a pushed tag must match it, the workflow checks; bump `Cargo.toml` and `tauri.conf.json` together). Installers are uploaded under fixed names (`Gaea-Forge-Windows-x64-setup.exe`, ...) so `lib/downloads.ts` and the README can link to `releases/latest/download/<name>`; keep those names in step with the workflow. The web version's sidebar footer links to the Windows, macOS and Linux installers (`DesktopDownloads`); the desktop app hides them (`useIsDesktopApp`).
 
+Icons: every icon is the round globe emblem from the logo artwork (`../assets/logo.png`), so the web and desktop versions match. `../assets/app-icon.png` is the emblem cut out at 1024px; regenerate the desktop icons (window, taskbar, `.ico`, `.icns`, used by the installers too; the NSIS installer's own icon is set in `tauri.conf.json`) with `npm run tauri icon assets/app-icon.png` from the root, then delete the `64x64.png`, `android/` and `ios/` it adds (the bundle doesn't use them). The web favicons use Next's file conventions (`src/app/favicon.ico` with 16/32/48px sizes, `icon.png`, `apple-icon.png` on an opaque background), and the sidebar shows `public/emblem.png`.
+
 ## Layout
 
 ```

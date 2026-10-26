@@ -16,14 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Gaea-Forge | World-Building Platform",
   description: "A local-first, open-source world-building platform.",
-  icons: {
-    icon: [
-      { url: "/icon.png", type: "image/png" },
-      { url: "/favicon.ico" },
-    ],
-    shortcut: "/icon.png",
-    apple: "/apple-icon.png",
-  },
 };
 
 export default function RootLayout({

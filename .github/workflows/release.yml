@@ -6,7 +6,7 @@ name: Release
 #     with every installer attached; open it under Releases and click "Publish
 #     release", which creates the vX.Y.Z tag. (The workflow's token may not create
 #     tags when the repository protects them; publishing as yourself can.)
-#   - or push the tag yourself (git tag v0.1.0 && git push origin v0.1.0), which
+#   - or push the tag yourself (git tag v1.0.0 && git push origin v1.0.0), which
 #     publishes the release directly.
 
 on:

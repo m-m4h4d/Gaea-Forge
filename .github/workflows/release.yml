@@ -1,9 +1,13 @@
 name: Release
 
-# Builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release
-# for the version in src-tauri/tauri.conf.json. Start it either way:
-#   - Actions tab -> Release -> Run workflow (on master); the tag vX.Y.Z is created
-#   - or push the tag yourself: git tag v0.1.0 && git push origin v0.1.0
+# Builds the desktop app for Windows, macOS and Linux and releases it on GitHub, for
+# the version in src-tauri/tauri.conf.json. Start it either way:
+#   - Actions tab -> Release -> Run workflow (on master). This makes a *draft* release
+#     with every installer attached; open it under Releases and click "Publish
+#     release", which creates the vX.Y.Z tag. (The workflow's token may not create
+#     tags when the repository protects them; publishing as yourself can.)
+#   - or push the tag yourself (git tag v0.1.0 && git push origin v0.1.0), which
+#     publishes the release directly.
 
 on:
   push:
@@ -126,9 +130,10 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          # Creates the tag on the built commit when started from the Actions tab
           tag_name: ${{ needs.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
+          # From the Actions tab: a draft, so no tag is created until you publish it
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
           name: Gaea Forge ${{ needs.version.outputs.tag }}
           generate_release_notes: true
           fail_on_unmatched_files: true

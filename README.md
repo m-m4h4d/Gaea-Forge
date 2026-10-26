@@ -16,7 +16,7 @@ Get the desktop app from the [latest release](https://github.com/m-m4h4d/Gaea-Fo
 | **macOS** (Apple Silicon and Intel) | [.dmg](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-macOS-universal.dmg) |
 | **Linux** (x86_64) | [.AppImage](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Linux-x86_64.AppImage) · [.deb](https://github.com/m-m4h4d/Gaea-Forge/releases/latest/download/Gaea-Forge-Linux-amd64.deb) |
 
-The builds are not code-signed yet: on Windows, SmartScreen may ask you to confirm (**More info → Run anyway**); on macOS, right-click the app and choose **Open** the first time. The web version links to the Windows installer from its header. The desktop app and the web version keep separate data; move a world between them with a backup (*Import → Backup & Restore*).
+The builds are not code-signed yet: on Windows, SmartScreen may ask you to confirm (**More info → Run anyway**); on macOS, right-click the app and choose **Open** the first time. The web version links to these installers from the bottom of its sidebar. The desktop app and the web version keep separate data; move a world between them with a backup (*Import → Backup & Restore*).
 
 ---
 
@@ -151,7 +151,7 @@ The output binaries will be located under `src-tauri/target/release/bundle/`.
 
 ### Publish a Release
 
-The **Release** workflow (`.github/workflows/release.yml`) builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release with the installers, for the `version` in `src-tauri/tauri.conf.json` (keep `src-tauri/Cargo.toml` in step). Start it from the repository's **Actions** tab (**Release → Run workflow** on `master`; it creates the `vX.Y.Z` tag), or by pushing the tag yourself:
+The **Release** workflow (`.github/workflows/release.yml`) builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release with the installers, for the `version` in `src-tauri/tauri.conf.json` (keep `src-tauri/Cargo.toml` in step). Start it from the repository's **Actions** tab (**Release → Run workflow** on `master`), which creates a **draft** release with every installer attached: open it under **Releases** and click **Publish release** (this creates the `vX.Y.Z` tag). Or push the tag yourself, which publishes directly:
 
 ```bash
 git tag v0.1.0

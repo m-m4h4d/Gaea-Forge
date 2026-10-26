@@ -5,6 +5,7 @@ import { CanvasData, LoreArticle } from '@/lib/database';
 import { ChevronDown, ChevronRight, Inbox, Palette, PanelLeftClose, Pin, Plus, Search, X } from 'lucide-react';
 import { CANVAS_TYPE_INFO } from './canvasTypes';
 import SearchResults from './SearchResults';
+import DesktopDownloads from './DesktopDownloads';
 import { SearchHit } from '@/lib/search';
 
 export type { ViewMode } from '@/lib/viewState';
@@ -330,6 +331,7 @@ export default function Sidebar({
             >
               <Plus size={14} strokeWidth={2.5} aria-hidden /> {newArticleLabel}
             </button>
+            <DesktopDownloads />
           </div>
         </div>
       </aside>

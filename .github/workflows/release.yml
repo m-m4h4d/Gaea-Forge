@@ -1,0 +1,129 @@
+name: Release
+
+# Builds the desktop app for Windows, macOS and Linux and publishes a GitHub Release.
+# Run it by pushing a version tag that matches src-tauri/tauri.conf.json, e.g.:
+#   git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            args: ''
+          - name: macOS
+            os: macos-latest
+            args: '--target universal-apple-darwin'
+          - name: Linux
+            os: ubuntu-22.04
+            args: ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the app version
+        shell: bash
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the app version ${version} in src-tauri/tauri.conf.json"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libxdo-dev libssl-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      - name: Build the desktop app
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      # Copy the installers under fixed names, so the web app can link to the latest
+      # release's files (releases/latest/download/<name>) without knowing the version
+      - name: Collect installers
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p dist
+          bundle=src-tauri/target/release/bundle
+          case "${RUNNER_OS}" in
+            Windows)
+              cp "$bundle"/nsis/*-setup.exe dist/Gaea-Forge-Windows-x64-setup.exe
+              cp "$bundle"/msi/*.msi dist/Gaea-Forge-Windows-x64.msi
+              ;;
+            macOS)
+              cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg dist/Gaea-Forge-macOS-universal.dmg
+              ;;
+            Linux)
+              cp "$bundle"/appimage/*.AppImage dist/Gaea-Forge-Linux-x86_64.AppImage
+              cp "$bundle"/deb/*.deb dist/Gaea-Forge-Linux-amd64.deb
+              ;;
+          esac
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: installers-*
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Gaea Forge ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*
+          body: |
+            ## Download
+
+            | Platform | File |
+            | :--- | :--- |
+            | **Windows** (10/11, 64-bit) | `Gaea-Forge-Windows-x64-setup.exe` (installer) or `Gaea-Forge-Windows-x64.msi` |
+            | **macOS** (Apple Silicon and Intel) | `Gaea-Forge-macOS-universal.dmg` |
+            | **Linux** (x86_64) | `Gaea-Forge-Linux-x86_64.AppImage` or `Gaea-Forge-Linux-amd64.deb` |
+
+            These builds are not code-signed yet. Windows may show a SmartScreen warning ("More info", then "Run anyway"), and on macOS right-click the app and choose **Open** the first time.
+
+            Your world is stored on your device. Download a backup from *Import → Backup & Restore* before moving between the web and desktop versions; they keep separate data.
